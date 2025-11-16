@@ -237,13 +237,45 @@
     }
     .game-container h4 { color:var(--c1); margin-bottom:6px; font-size:16px; font-weight:600; }
     #gameArea { margin-top:10px; }
-    #playBtn { 
+    #playBtn {
       background:var(--c1); color:#000; padding:8px 16px; border:none;
       border-radius:var(--radius); cursor:pointer; font-weight:bold;
       transition:var(--transition); box-shadow:0 0 10px var(--c1), 0 0 20px rgba(0,255,255,0.5);
     }
-    #playBtn:hover { background:#0cc; box-shadow:0 0 15px var(--c1), 0 0 30px rgba(0,255,255,0.7); }
+    #playBtn:hover { background:#0cc; box-shadow: 0 0 15px var(--c1), 0 0 30px rgba(0,255,255,0.7); }
     #gameResult { color:#ccc; margin-top:10px; }
+    /* === GLOBAL CHAT VIEW === */
+    #globalView {
+      display: none; flex: 1; flex-direction: column;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+    }
+    #globalHeader {
+      padding: 16px; border-bottom: 1px solid var(--border); font-weight: 600; color: var(--c1);
+    }
+    #globalMessages {
+      flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    }
+    #globalInputArea {
+      display: flex; padding: 16px; background: rgba(0,0,0,0.9);
+      border-top: 2px solid var(--c2); gap: 12px; align-items: center; backdrop-filter: blur(10px);
+      margin-bottom: 70px; position: relative; z-index: 1002;
+    }
+    #globalMsgInput {
+      flex: 1; background: var(--card); border: 2px solid transparent;
+      color: var(--text); padding: 14px 18px; border-radius: 12px; outline: none;
+      font-size: 16px; min-height: 50px; resize: none; transition: var(--transition);
+      pointer-events: auto; z-index: 10003;
+    }
+    #globalMsgInput:focus { border-color: var(--c1); box-shadow: 0 0 0 3px rgba(0,255,255,.2); }
+    #globalSendBtn {
+      background: var(--c1); color: #000; border: none; padding: 0 24px;
+      border-radius: 12px; cursor: pointer; font-weight: bold; height: 50px;
+      min-width: 80px; transition: var(--transition);
+      pointer-events: auto; position: relative; z-index: 10003;
+      box-shadow: 0 0 10px var(--c1), 0 0 20px rgba(0,255,255,0.5);
+      animation: aura-pulse 2s infinite ease-in-out;
+    }
+    #globalSendBtn:hover { background: #0cc; box-shadow: 0 0 15px var(--c1), 0 0 30px rgba(0,255,255,0.7); }
     /* === FORGOT PASSWORD MODAL === */
     #forgotPasswordModal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.9);
@@ -358,7 +390,7 @@
   </div>
   <!-- TOP BAR -->
   <div id="topBar">
-    <span id="clock"></span> | Country: <strong>CA</strong>
+    <span id="clock">11:31 AM EST, Sunday, November 16, 2025</span>
     <span id="playersOnline">Players: 0</span>
   </div>
   <div id="connectionStatus" class="status-connecting">Offline</div>
@@ -371,6 +403,7 @@
     <div class="tab" data-tab="shop">Shop</div>
     <div class="tab" data-tab="games">Games</div>
     <div class="tab" data-tab="settings">Settings</div>
+    <div class="tab" data-tab="global">Global</div>
   </div>
   <!-- APP -->
   <div id="app">
@@ -497,6 +530,15 @@
       <button class="btn" style="margin-top:10px; background:#f55;">Close</button>
     </div>
   </div>
+  <!-- GLOBAL VIEW -->
+  <div id="globalView" style="display: none; flex: 1; flex-direction: column;">
+    <div id="globalHeader">Global Chat</div>
+    <div id="globalMessages" style="flex: 1; padding: 20px; overflow-y: auto;"></div>
+    <div id="globalInputArea">
+      <textarea id="globalMsgInput" placeholder="Type a global message..." rows="1" style="flex: 1;"></textarea>
+      <button id="globalSendBtn">SEND</button>
+    </div>
+  </div>
   <!-- USER PANEL -->
   <div id="userPanel">
     <img id="userAvatar" src="https://i.pravatar.cc/80" />
@@ -521,6 +563,7 @@
       const shopView = document.getElementById('shopView');
       const gamesView = document.getElementById('gamesView');
       const settingsView = document.getElementById('settingsView');
+      const globalView = document.getElementById('globalView');
       const connectionStatus = document.getElementById('connectionStatus');
       const notifications = document.getElementById('notifications');
       const playersOnline = document.getElementById('playersOnline');
@@ -532,6 +575,9 @@
       const forgotPasswordLink = document.getElementById('forgotPasswordLink');
       const resetPasswordBtn = document.getElementById('resetPasswordBtn');
       const closeForgotModalBtn = document.getElementById('closeForgotModalBtn');
+      const globalMessages = document.getElementById('globalMessages');
+      const globalMsgInput = document.getElementById('globalMsgInput');
+      const globalSendBtn = document.getElementById('globalSendBtn');
       let socket = null, myName, currentServer = 'home', currentChat = 'general';
       let servers = {}, onlineUsers = {}, points = 0;
       let localMessages = JSON.parse(localStorage.getItem('ghostcordMessages') || '{}');
@@ -542,14 +588,12 @@
         'wallpaper1': { name: 'Neon Grid', cost: 100, type: 'wallpaper', data: 'ur[](https://example.com/neon-grid.jpg)' },
         'wallpaper2': { name: 'Dark Space', cost: 150, type: 'wallpaper', data: 'ur[](https://example.com/dark-space.jpg)' }
       };
-
       // === NOTIFICATIONS ===
       function showNotification(message) {
         notifications.style.display = 'block';
         notifications.textContent = message;
         setTimeout(() => notifications.style.display = 'none', 3000);
       }
-
       // === LOGIN ===
       let isSignup = false;
       const authBtn = document.getElementById('authBtn');
@@ -568,7 +612,6 @@
         document.getElementById('switchText').innerHTML = isSignup ? "Have an account? " : "Don't have an account? ";
         switchLink.textContent = isSignup ? "Sign In" : "Create one";
       });
-
       function signup(u, p) {
         console.log('Signup:', u);
         if (!u || !p) return showNotification("Fill all fields!");
@@ -582,7 +625,6 @@
         showNotification("Account created!");
         login(u, p);
       }
-
       function login(u, p) {
         console.log('Logging in:', u);
         const key = `user_${u}`;
@@ -602,7 +644,6 @@
           showNotification('Login failed. Check Console for details or try a different username/password.');
         }
       }
-
       function logout() {
         console.log('Logout');
         if (confirm("Logout?")) {
@@ -610,19 +651,16 @@
           location.reload();
         }
       }
-
       // === FORGOT PASSWORD ===
       forgotPasswordLink.addEventListener('click', () => {
         console.log('Forgot Password link clicked');
         forgotPasswordModal.style.display = 'flex';
       });
-
       closeForgotModalBtn.addEventListener('click', () => {
         console.log('Close forgot password modal clicked');
         forgotPasswordModal.style.display = 'none';
         document.getElementById('forgotPasswordInput').value = '';
       });
-
       resetPasswordBtn.addEventListener('click', () => {
         console.log('Reset Password button clicked');
         const username = document.getElementById('forgotPasswordInput').value.trim();
@@ -636,7 +674,7 @@
           showNotification('Username not found!');
           return;
         }
-        const newPassword = Math.random().toString(36).slice(-8); // Generate a random 8-character password
+        const newPassword = Math.random().toString(36).slice(-8);
         const parsedData = JSON.parse(userData);
         parsedData.password = newPassword;
         localStorage.setItem(key, JSON.stringify(parsedData));
@@ -644,7 +682,6 @@
         forgotPasswordModal.style.display = 'none';
         document.getElementById('forgotPasswordInput').value = '';
       });
-
       // Auto-login
       const saved = localStorage.getItem('ghostcordAccount');
       if (saved) {
@@ -657,13 +694,11 @@
           showNotification('Auto-login failed. Please sign in manually.');
         }
       }
-
       // === MAIN APP ===
       function initApp() {
         console.log('Initializing app');
         try {
           myName = JSON.parse(localStorage.getItem('ghostcordAccount')).username;
-          // Try socket connection
           if (typeof io !== 'undefined') {
             try {
               socket = io();
@@ -680,31 +715,24 @@
             connectionStatus.className = 'status-connecting';
             showNotification('Running in offline mode. Messages will be stored locally.');
           }
-          // Load user data
           const userData = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
           servers = userData.servers || { home: { name: 'Home', channels: ['general'], members: [myName] } };
           points = userData.points || 0;
           saveUserData();
-
-          // Clock
           function updateClock() {
             const now = new Date();
             const time = now.toLocaleTimeString('en-US', {
               timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', hour12: true
             });
             const date = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-            clockEl.innerHTML = `<strong>${date}</strong> <span style="color:var(--c1);">${time} EST</span>`;
+            clockEl.textContent = `${time} EST, ${date}`;
           }
           updateClock();
-          setInterval(updateClock, 1000);
-
-          // Players Online
+          setInterval(updateClock, 60000);
           function updatePlayersOnline() {
             const count = Object.keys(onlineUsers).length || 0;
             playersOnline.textContent = `Players: ${count}`;
           }
-
-          // Render servers
           function renderServers() {
             console.log('Rendering servers');
             const srvList = document.getElementById('servers');
@@ -716,23 +744,16 @@
               div.textContent = s.name[0].toUpperCase();
               div.dataset.name = s.name;
               div.dataset.id = id;
-              div.addEventListener('click', () => {
-                console.log('Server clicked:', id);
-                switchServer(id);
-              });
+              div.addEventListener('click', () => switchServer(id));
               if (id === currentServer) div.style.background = '#0f0';
               srvList.appendChild(div);
             });
             const add = document.createElement('div');
             add.className = 'srv add';
             add.textContent = '+';
-            add.addEventListener('click', () => {
-              console.log('Add server clicked');
-              createServer();
-            });
+            add.addEventListener('click', createServer);
             srvList.appendChild(add);
           }
-
           function createServer() {
             console.log('Creating server');
             const name = prompt("Server name:");
@@ -743,7 +764,6 @@
             renderServers();
             switchServer(id);
           }
-
           function switchServer(id) {
             console.log('Switching to server:', id);
             currentServer = id;
@@ -758,11 +778,9 @@
               div.innerHTML = `# ${ch} <span class="delete">×</span>`;
               div.addEventListener('click', e => {
                 if (e.target.classList.contains('delete')) {
-                  console.log('Remove channel:', ch);
                   removeChannel(ch);
                   return;
                 }
-                console.log('Channel clicked:', ch);
                 document.querySelectorAll('.chan').forEach(c => c.classList.remove('active'));
                 div.classList.add('active');
                 currentChat = ch;
@@ -779,44 +797,25 @@
             currentChat = 'general';
             loadMessages();
           }
-
           function addChannel() {
             console.log('Adding channel');
             const name = prompt("Channel name:");
             if (name && !servers[currentServer].channels.includes(name)) {
-              showNotification(`Add channel "${name}"?`);
-              const acceptBtn = document.createElement('button');
-              acceptBtn.textContent = 'Accept Changes';
-              acceptBtn.className = 'btn-small';
-              acceptBtn.style.marginLeft = '10px';
-              acceptBtn.addEventListener('click', () => {
-                servers[currentServer].channels.push(name);
-                saveUserData();
-                switchServer(currentServer);
-                showNotification(`Channel "${name}" added!`);
-                notifications.removeChild(acceptBtn);
-              });
-              notifications.appendChild(acceptBtn);
+              servers[currentServer].channels.push(name);
+              saveUserData();
+              switchServer(currentServer);
+              showNotification(`Channel "${name}" added!`);
             }
           }
-
           function removeChannel(ch) {
             console.log('Removing channel:', ch);
-            showNotification(`Remove channel "${ch}"?`);
-            const acceptBtn = document.createElement('button');
-            acceptBtn.textContent = 'Accept Changes';
-            acceptBtn.className = 'btn-small';
-            acceptBtn.style.marginLeft = '10px';
-            acceptBtn.addEventListener('click', () => {
+            if (confirm(`Remove channel "${ch}"?`)) {
               servers[currentServer].channels = servers[currentServer].channels.filter(c => c !== ch);
               saveUserData();
               switchServer(currentServer);
               showNotification(`Channel "${ch}" removed!`);
-              notifications.removeChild(acceptBtn);
-            });
-            notifications.appendChild(acceptBtn);
+            }
           }
-
           function saveUserData() {
             console.log('Saving user data');
             const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
@@ -824,8 +823,6 @@
             data.points = points;
             localStorage.setItem(`user_${myName}`, JSON.stringify(data));
           }
-
-          // Invite
           function showInvite() {
             console.log('Showing invite modal');
             const link = `${window.location.origin}/join.html?s=${currentServer}`;
@@ -833,20 +830,16 @@
             document.getElementById('inviteLink').textContent = link;
             document.getElementById('inviteModal').style.display = 'flex';
           }
-
           function copyInvite() {
             console.log('Copying invite link');
             navigator.clipboard.writeText(document.getElementById('inviteLink').textContent).then(() => {
               showNotification("Invite link copied!");
             });
           }
-
           function closeInvite() {
             console.log('Closing invite modal');
             document.getElementById('inviteModal').style.display = 'none';
           }
-
-          // Tabs
           tabs.forEach(tab => {
             tab.addEventListener('click', () => {
               console.log('Tab clicked:', tab.dataset.tab);
@@ -859,12 +852,14 @@
               shopView.style.display = 'none';
               gamesView.style.display = 'none';
               settingsView.style.display = 'none';
+              globalView.style.display = 'none';
               if (tab.dataset.tab === 'home') {
                 app.style.display = 'flex';
                 document.querySelector('#app #msgInput').focus();
               }
               if (tab.dataset.tab === 'dms') {
                 dmView.style.display = 'flex';
+                updateDMList();
                 document.querySelector('#dmView #msgInput').focus();
               }
               if (tab.dataset.tab === 'friends') {
@@ -886,23 +881,24 @@
               if (tab.dataset.tab === 'settings') {
                 settingsView.style.display = 'block';
               }
+              if (tab.dataset.tab === 'global') {
+                globalView.style.display = 'flex';
+                globalMsgInput.focus();
+              }
             });
           });
-
-          // Socket
           if (socket) {
             socket.on('connect', () => {
               console.log('Socket connected');
               connectionStatus.textContent = 'Connected';
               connectionStatus.className = 'status-connected';
               socket.emit('join', { name: myName });
-              // Earn points for activity (e.g., every 5 minutes online)
               setInterval(() => {
                 points += 1;
                 saveUserData();
                 pointsDisplay.textContent = `Points: ${points}`;
                 showNotification('Earned 1 point for being active!');
-              }, 300000); // 5 minutes
+              }, 300000);
             });
             socket.on('connect_error', (err) => {
               console.error('Socket connection error:', err);
@@ -922,8 +918,15 @@
               appendMessage(d.msg);
             });
             socket.on('dm', d => {
-              if (currentChat !== `dm:${d.from}` && currentChat !== `dm:${d.to}`) return;
-              appendMessage(d.msg, d.from);
+              const dmKey = `dm:${d.from}`;
+              if (currentChat === dmKey) {
+                appendMessage(d.msg, d.from);
+              } else {
+                showNotification(`New DM from ${d.from}!`);
+                localMessages[dmKey] = localMessages[dmKey] || [];
+                localMessages[dmKey].push(d.msg);
+                localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
+              }
             });
             socket.on('friendRequest', data => {
               if (data.to === myName && !friends[data.from]) {
@@ -941,46 +944,65 @@
                 showNotification(data.accepted ? `${data.from} accepted your friend request!` : `${data.from} rejected your friend request.`);
               }
             });
+            socket.on('globalMessage', data => {
+              console.log('Received global message:', data);
+              if (document.querySelector('.tab[data-tab="global"]').classList.contains('active')) {
+                appendGlobalMessage(data);
+              } else {
+                showNotification(`New global message from ${data.username}!`);
+              }
+              localMessages['global'] = localMessages['global'] || [];
+              localMessages['global'].push({ user: data.username, text: data.message, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) });
+              localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
+            });
           }
-
+          function appendGlobalMessage(data) {
+            console.log('Appending global message:', data);
+            const div = document.createElement('div');
+            div.className = 'msg';
+            div.innerHTML = `<strong>[${data.time || new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}] ${data.username}:</strong> ${data.message}`;
+            if (data.username === myName) div.classList.add('own');
+            globalMessages.appendChild(div);
+            globalMessages.scrollTop = globalMessages.scrollHeight;
+          }
+          globalSendBtn.addEventListener('click', () => {
+            console.log('globalSendBtn clicked');
+            const message = globalMsgInput.value.trim();
+            if (message && socket && connectionStatus.textContent === 'Connected') {
+              const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+              socket.emit('globalMessage', { username: myName, message, time });
+              appendGlobalMessage({ username: myName, message, time });
+              globalMsgInput.value = '';
+            } else {
+              showNotification('You need to be online to send global messages!');
+            }
+          });
+          globalMsgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              globalSendBtn.click();
+            }
+          });
           function updateDMList() {
             console.log('Updating DM list');
             const dmList = document.getElementById('dmList');
             dmList.innerHTML = '';
             Object.keys(onlineUsers).forEach(name => {
-              if (name === myName) return;
+              if (name === myName || !friends[name]) return;
               const div = document.createElement('div');
               div.className = 'dm-user';
               div.innerHTML = `
                 <div class="status-dot" style="background:${onlineUsers[name] === 'online' ? 'var(--online)' : '#666'}"></div>
                 <span>${name}</span>
               `;
-              div.addEventListener('click', () => {
-                console.log('DM user clicked:', name);
-                openDM(name);
-              });
+              div.addEventListener('click', () => openDM(name));
               dmList.appendChild(div);
             });
-            if (!Object.keys(onlineUsers).length) {
-              const div = document.createElement('div');
-              div.className = 'dm-user';
-              div.innerHTML = '<div class="status-dot" style="background:#666"></div><span>TestUser</span>';
-              div.addEventListener('click', () => {
-                console.log('DM user clicked: TestUser');
-                openDM('TestUser');
-              });
-              dmList.appendChild(div);
-            }
           }
-
           function updateFriendsList() {
             console.log('Updating friends list');
             const friendsList = document.getElementById('friendsList');
             friendsList.innerHTML = '';
-            if (Object.keys(friends).length === 0) {
-              friends = { 'friend1': 'offline', 'friend2': 'online', 'friend3': 'idle' };
-              localStorage.setItem('ghostcordFriends', JSON.stringify(friends));
-            }
             Object.keys(friends).forEach(name => {
               const div = document.createElement('div');
               div.className = `friend ${friends[name] === 'online' ? '' : 'offline'} ${friends[name] === 'pending' ? 'pending' : ''}`;
@@ -1001,6 +1023,7 @@
                   friends[name] = 'online';
                   saveUserData();
                   updateFriendsList();
+                  updateDMList();
                   showNotification(`${name} added as a friend!`);
                   if (socket) socket.emit('friendResponse', { to: name, from: myName, accepted: true });
                 });
@@ -1016,23 +1039,20 @@
                 });
                 div.appendChild(acceptBtn);
                 div.appendChild(rejectBtn);
+              } else {
+                div.addEventListener('click', () => openDM(name));
               }
-              div.addEventListener('click', () => {
-                if (friends[name] !== 'pending') {
-                  console.log('Friend clicked:', name);
-                  openDM(name);
-                }
-              });
               friendsList.appendChild(div);
             });
             document.getElementById('addFriendInput').value = '';
           }
-
           function addFriend() {
             console.log('Adding friend');
             const friendName = document.getElementById('addFriendInput').value.trim();
-            if (!friendName || friendName === myName) return showNotification("Invalid username!");
-            if (friends[friendName]) return showNotification("Already a friend or pending!");
+            if (!friendName || friendName === myName || friends[friendName]) {
+              showNotification("Invalid username or already a friend/pending!");
+              return;
+            }
             if (socket && connectionStatus.textContent === 'Connected') {
               socket.emit('friendRequest', { to: friendName, from: myName });
               friends[friendName] = 'pending';
@@ -1043,7 +1063,6 @@
               showNotification("You need to be online to add friends!");
             }
           }
-
           function updateNewsFeed() {
             console.log('Updating news feed');
             const newsFeed = document.getElementById('newsFeed');
@@ -1059,7 +1078,6 @@
               newsFeed.appendChild(div);
             });
           }
-
           function updateShop() {
             console.log('Updating shop');
             const shopItemsEl = document.getElementById('shopItems');
@@ -1093,7 +1111,6 @@
               shopItemsEl.appendChild(div);
             });
           }
-
           function selectRandomGame() {
             const games = [
               {
@@ -1118,7 +1135,6 @@
                   gameArea.appendChild(input);
                   gameArea.appendChild(submitBtn);
                   gameResult.textContent = '';
-
                   submitBtn.addEventListener('click', () => {
                     const guess = parseInt(input.value);
                     if (isNaN(guess) || guess < 1 || guess > 100) {
@@ -1157,7 +1173,7 @@
                       clearInterval(timer);
                       playBtn.removeEventListener('click', handleClick);
                       playBtn.textContent = 'Play';
-                      points += Math.floor(clicks / 5); // 1 point per 5 clicks
+                      points += Math.floor(clicks / 5);
                       saveUserData();
                       pointsDisplay.textContent = `Points: ${points}`;
                       gameResult.textContent = `Game over! You clicked ${clicks} times. Earned ${Math.floor(clicks / 5)} points!`;
@@ -1174,7 +1190,6 @@
             gameResult.textContent = '';
             playBtn.onclick = randomGame.play;
           }
-
           function openDM(user) {
             console.log('Opening DM with:', user);
             currentChat = `dm:${user}`;
@@ -1189,11 +1204,11 @@
             shopView.style.display = 'none';
             gamesView.style.display = 'none';
             settingsView.style.display = 'none';
+            globalView.style.display = 'none';
             document.querySelector('#dmView #msgInput').placeholder = `Message @${user}...`;
             document.querySelector('#dmView #msgInput').focus();
             loadMessages();
           }
-
           function sendMsg(e, context = 'app') {
             console.log('Send message attempted in context:', context);
             const input = document.querySelector(`#${context} #msgInput`);
@@ -1205,31 +1220,25 @@
             localMessages[key].push(msg);
             localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
             appendMessage(msg);
-            if (socket) {
-              try {
-                if (currentChat.startsWith('dm:')) {
-                  const target = currentChat.split(':')[1];
-                  socket.emit('dm', { to: target, msg });
-                } else {
-                  socket.emit('msg', { server: currentServer, channel: currentChat, msg });
-                }
-              } catch (e) {
-                console.error('Error sending message:', e);
+            if (socket && connectionStatus.textContent === 'Connected') {
+              if (currentChat.startsWith('dm:')) {
+                const target = currentChat.split(':')[1];
+                socket.emit('dm', { to: target, msg });
+              } else {
+                socket.emit('msg', { server: currentServer, channel: currentChat, msg });
               }
             }
             input.value = '';
             input.style.height = 'auto';
           }
-
           function loadMessages() {
             console.log('Loading messages for:', currentChat);
             const key = currentChat.startsWith('dm:') ? currentChat : `${currentServer}:${currentChat}`;
             const messages = localMessages[key] || [];
             const messagesEl = document.getElementById('messages');
             messagesEl.innerHTML = '';
-            messages.forEach(msg => appendMessage(msg));
+            messages.forEach(msg => appendMessage(msg, currentChat.startsWith('dm:') ? msg.user : null));
           }
-
           function appendMessage(msg, from = null) {
             console.log('Appending message:', msg);
             const messages = document.getElementById('messages');
@@ -1240,8 +1249,6 @@
             messages.appendChild(m);
             messages.scrollTop = messages.scrollHeight;
           }
-
-          // Settings
           function loadSettings() {
             console.log('Loading settings');
             const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
@@ -1267,7 +1274,6 @@
             }
             pointsDisplay.textContent = `Points: ${points}`;
           }
-
           function saveSettings() {
             console.log('Saving settings');
             const bio = document.getElementById('bioInput').value;
@@ -1297,28 +1303,33 @@
               save();
             }
           }
-
-          // Bind events
           function bindEvents() {
             console.log('Binding events');
-            ['app', 'dmView'].forEach(context => {
-              const input = document.querySelector(`#${context} #msgInput`);
-              const btn = document.querySelector(`#${context} #sendBtn`);
+            ['app', 'dmView', 'globalView'].forEach(context => {
+              const input = document.querySelector(`#${context} #msgInput`) || document.querySelector(`#${context} #globalMsgInput`);
+              const btn = document.querySelector(`#${context} #sendBtn`) || document.querySelector(`#${context} #globalSendBtn`);
               if (input) {
                 input.disabled = false;
                 input.addEventListener('click', () => console.log(`${context} msgInput clicked`));
                 input.addEventListener('keydown', e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    console.log(`${context} Enter pressed`);
-                    sendMsg(e, context);
+                    if (context === 'globalView') {
+                      globalSendBtn.click();
+                    } else {
+                      sendMsg(e, context);
+                    }
                   }
                 });
               }
               if (btn) {
                 btn.addEventListener('click', e => {
                   console.log(`${context} sendBtn clicked`);
-                  sendMsg(e, context);
+                  if (context === 'globalView') {
+                    globalSendBtn.click();
+                  } else {
+                    sendMsg(e, context);
+                  }
                 });
               }
             });
@@ -1331,55 +1342,30 @@
               });
             });
             document.querySelectorAll('.copy-btn').forEach(btn => {
-              btn.addEventListener('click', () => {
-                console.log('copy-btn clicked');
-                copyInvite();
-              });
+              btn.addEventListener('click', () => copyInvite());
             });
             document.querySelectorAll('.btn').forEach(btn => {
               if (btn.textContent === 'Save Settings') {
-                btn.addEventListener('click', () => {
-                  console.log('Save Settings clicked');
-                  saveSettings();
-                });
+                btn.addEventListener('click', saveSettings);
               }
               if (btn.textContent === 'Logout') {
-                btn.addEventListener('click', () => {
-                  console.log('Logout clicked');
-                  logout();
-                });
-              }
-              if (btn.textContent === 'Close') {
-                btn.addEventListener('click', () => {
-                  console.log('Close invite clicked');
-                  closeInvite();
-                });
+                btn.addEventListener('click', logout);
               }
             });
           }
-
-          // Init
-          console.log('Starting initialization');
           renderServers();
-          switchServer('home');
           loadSettings();
           bindEvents();
-          updateDMList();
-          updateFriendsList();
-          updateNewsFeed();
-          updateShop();
           updatePlayersOnline();
-          document.querySelector('#app #msgInput').focus();
         } catch (e) {
-          console.error('Error in initApp:', e);
+          console.error('Init app error:', e);
           showNotification('App initialization failed. Check Console for details.');
         }
       }
     } catch (e) {
       console.error('Global error:', e);
-      showNotification('Critical error. Check Console for details.');
+      showNotification('An error occurred. Check Console for details.');
     }
   </script>
 </body>
-
 </html>
