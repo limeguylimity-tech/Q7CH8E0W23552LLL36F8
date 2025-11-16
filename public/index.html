@@ -666,7 +666,7 @@
           // Try socket connection
           if (typeof io !== 'undefined') {
             try {
-              socket = io('http://192.168.1.250:3000');
+              socket = io();
               console.log('Socket.io initialized');
             } catch (e) {
               console.error('Socket.io connection failed:', e);
@@ -1381,4 +1381,5 @@
     }
   </script>
 </body>
+
 </html>
