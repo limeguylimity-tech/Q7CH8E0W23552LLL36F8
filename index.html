@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GHOSTCORD v6.1</title>
+  <title>GHOSTCORD v6.2</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
@@ -54,72 +54,35 @@
     #msgInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
     #sendBtn{background:var(--c1);color:#000;border:none;padding:0 24px;border-radius:12px;cursor:pointer;font-weight:bold;height:50px;min-width:80px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
     #sendBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
-    #dmList{padding:16px 8px;}
-    .dm-user{padding:10px 12px;margin:4px 8px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;position:relative;}
-    .dm-user:hover{background:var(--accent);}
-    .dm-user .status-dot{width:10px;height:10px;border-radius:50%;background:var(--online);}
-    .dm-user.offline .status-dot{background:#666;}
-    #friendsList{padding:16px 8px;}
-    .friend{padding:10px 12px;margin:4px 8px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;position:relative;}
-    .friend:hover{background:var(--accent);}
-    .friend .status-dot{width:10px;height:10px;border-radius:50%;background:var(--online);}
-    .friend.offline .status-dot{background:#666;}
-    .friend.pending{opacity:.7;}
-    .friend.pending .accept-btn,.friend.pending .reject-btn{margin-left:10px;padding:2px 8px;font-size:10px;cursor:pointer;}
-    .friend.pending .accept-btn{background:var(--online);color:#000;border-radius:var(--radius);}
-    .friend.pending .reject-btn{background:var(--dnd);color:#000;border-radius:var(--radius);}
-    #newsFeed{padding:20px;overflow-y:auto;flex:1;}
-    .news-item{background:var(--card);padding:12px 16px;border-radius:var(--radius);margin-bottom:12px;border-left:4px solid var(--c1);box-shadow:0 1px 3px rgba(0,0,0,.2);}
-    .news-item h4{color:var(--c1);margin-bottom:6px;font-size:16px;font-weight:600;}
-    .news-item p{color:#ccc;font-size:14px;}
-    #shopView{display:none;padding:20px;overflow-y:auto;flex:1;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);}
-    .shop-item{background:var(--card);padding:12px 16px;border-radius:var(--radius);margin-bottom:12px;border-left:4px solid var(--c1);box-shadow:0 1px 3px rgba(0,0,0,.2);display:flex;justify-content:space-between;align-items:center;}
-    .shop-item h4{color:var(--c1);margin-bottom:6px;font-size:16px;font-weight:600;}
-    .shop-item p{color:#ccc;font-size:14px;}
-    .shop-item .buy-btn{background:var(--c2);color:#000;padding:6px 12px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);box-shadow:0 0 10px var(--c2),0 0 20px rgba(255,0,255,.5);}
-    .shop-item .buy-btn:hover{background:#e0c;box-shadow:0 0 15px var(--c2),0 0 30px rgba(255,0,255,.7);}
-    .shop-item .buy-btn:disabled{background:#666;cursor:not-allowed;box-shadow:none;}
+    #dmView,#friendsView,#newsView,#shopView,#gamesView,#settingsView,#globalView{flex:1;display:none;flex-direction:column;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);}
+    #dmHeader,#globalHeader{padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--c1);}
+    #dmList,#friendsList,#newsFeed,#shopItems,#gameContainer{padding:20px;}
+    .dm-user,.friend{padding:10px 12px;margin:4px 8px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;}
+    .dm-user:hover,.friend:hover{background:var(--accent);}
+    .status-dot{width:10px;height:10px;border-radius:50%;background:var(--online);}
+    .offline .status-dot{background:#666;}
+    .pending{opacity:.7;}
+    .accept-btn,.reject-btn{margin-left:10px;padding:2px 8px;font-size:10px;cursor:pointer;border-radius:var(--radius);}
+    .accept-btn{background:var(--online);color:#000;}
+    .reject-btn{background:var(--dnd);color:#000;}
+    .news-item,.shop-item,.game-container{background:var(--card);padding:12px 16px;border-radius:var(--radius);margin-bottom:12px;border-left:4px solid var(--c1);box-shadow:0 1px 3px rgba(0,0,0,.2);}
+    .news-item h4,.shop-item h4,.game-container h4{color:var(--c1);margin-bottom:6px;font-size:16px;font-weight:600;}
+    .buy-btn{background:var(--c2);color:#000;padding:6px 12px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);}
+    .buy-btn:disabled{background:#666;cursor:not-allowed;}
     #pointsDisplay{color:var(--c1);font-weight:600;margin-bottom:10px;}
-    #gamesView{display:none;padding:20px;overflow-y:auto;flex:1;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);}
-    .game-container{background:var(--card);padding:12px 16px;border-radius:var(--radius);margin-bottom:12px;border-left:4px solid var(--c1);box-shadow:0 1px 3px rgba(0,0,0,.2);text-align:center;}
-    .game-container h4{color:var(--c1);margin-bottom:6px;font-size:16px;font-weight:600;}
-    #gameArea{margin-top:10px;}
-    #playBtn{background:var(--c1);color:#000;padding:8px 16px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);}
-    #playBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
-    #gameResult{color:#ccc;margin-top:10px;}
-    #globalView{flex:1;flex-direction:column;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);}
-    #globalHeader{padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--c1);}
-    #globalMessages{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+    #playBtn{background:var(--c1);color:#000;padding:8px 16px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);}
     #globalInputArea{display:flex;padding:16px;background:rgba(0,0,0,.9);border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);margin-bottom:70px;position:relative;z-index:1002;}
     #globalMsgInput{flex:1;background:var(--card);border:2px solid transparent;color:var(--text);padding:14px 18px;border-radius:12px;outline:none;font-size:16px;min-height:50px;resize:none;transition:var(--transition);}
-    #globalMsgInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
     #globalSendBtn{background:var(--c1);color:#000;border:none;padding:0 24px;border-radius:12px;cursor:pointer;font-weight:bold;height:50px;min-width:80px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
-    #globalSendBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
-    #forgotPasswordModal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:9998;}
-    #forgotPasswordBox{background:var(--card);padding:30px;border-radius:var(--radius);width:400px;text-align:center;border:2px solid var(--c1);}
-    #forgotPasswordBox h3{color:var(--c1);margin-bottom:20px;font-size:20px;font-weight:600;}
-    #forgotPasswordInput{width:100%;padding:12px 16px;margin:10px 0;background:var(--accent);border:1px solid var(--c1);border-radius:var(--radius);color:var(--text);font-size:15px;outline:none;transition:var(--transition);}
-    #forgotPasswordInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
-    #resetPasswordBtn{background:var(--c1);color:#000;padding:12px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;width:100%;margin-top:10px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
-    #resetPasswordBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
-    #closeForgotModalBtn{background:#f55;color:#000;padding:10px 20px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;margin-top:10px;transition:var(--transition);box-shadow:0 0 10px #f55,0 0 20px rgba(255,85,85,.5);}
-    #closeForgotModalBtn:hover{background:#f77;box-shadow:0 0 15px #f55,0 0 30px rgba(255,85,85,.7);}
     #userPanel{position:fixed;bottom:0;left:0;width:100%;background:rgba(0,0,0,.9);padding:10px 16px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--border);z-index:1000;backdrop-filter:blur(10px);height:60px;}
     #userAvatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--c1);object-fit:cover;}
     #userName{font-weight:600;}
     #userStatus{font-size:11px;color:var(--online);}
-    #inviteModal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:9998;}
-    #inviteBox{background:var(--card);padding:30px;border-radius:var(--radius);width:400px;text-align:center;border:2px solid var(--c1);}
-    #inviteLink{background:var(--accent);padding:12px;border-radius:var(--radius);margin:15px 0;word-break:break-all;color:var(--c1);font-weight:bold;}
-    .copy-btn{background:var(--c1);color:#000;padding:10px 20px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
-    .copy-btn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
     #connectionStatus{position:fixed;top:10px;right:10px;padding:8px 16px;border-radius:var(--radius);font-size:12px;font-weight:bold;z-index:1000;}
     .status-connected{background:#0f0;color:#000;}
     .status-connecting{background:#fa0;color:#000;}
     .btn-small{background:var(--c1);color:#000;padding:6px 10px;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:bold;margin:5px 8px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
-    .btn-small:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
-    .btn-small.invite{background:var(--c2);box-shadow:0 0 10px var(--c2),0 0 20px rgba(255,0,255,.5);}
-    .btn-small.invite:hover{background:#e0c;box-shadow:0 0 15px var(--c2),0 0 30px rgba(255,0,255,.7);}
+    .btn-small.invite{background:var(--c2);}
   </style>
 </head>
 <body>
@@ -133,7 +96,6 @@
       <input id="password" class="input" placeholder="Password" type="password">
       <button id="authBtn" class="btn">Sign In</button>
       <div class="switch"><span id="switchText">Don't have an account? </span><a id="switchLink">Create one</a></div>
-      <div class="switch"><a id="forgotPasswordLink">Forgot Password?</a></div>
     </div>
   </div>
 
@@ -155,34 +117,43 @@
     <div class="tab" data-tab="settings">Settings</div>
   </div>
 
-  <!-- HOME (SERVER/CHANNEL) -->
+  <!-- HOME -->
   <div id="app">
-    <div id="servers"></div>
+    <div id="servers">
+      <div class="srv add" id="addServerBtn">+</div>
+    </div>
     <div id="main">
       <div id="channels">
         <h3>Channels</h3>
         <div id="channelList"></div>
         <button id="addChannelBtn" class="btn-small">+ Channel</button>
-        <button id="inviteBtn" class="btn-small invite">Invite</button>
       </div>
       <div id="chatArea">
         <div id="messages"></div>
         <div id="inputArea">
-          <textarea id="msgInput" placeholder="Type message..."></textarea>
-          <button id="sendBtn">Send</button>
+          <textarea id="msgInput" placeholder="Select a server..."></textarea>
+          <button id="sendBtn" disabled>Send</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- GLOBAL CHAT -->
-  <div id="globalView" style="display:none;">
-    <div id="globalHeader">Global Chat</div>
-    <div id="globalMessages"></div>
-    <div id="globalInputArea">
-      <textarea id="globalMsgInput" placeholder="Say something to the world..."></textarea>
-      <button id="globalSendBtn">Send</button>
-    </div>
+  <!-- OTHER VIEWS -->
+  <div id="dmView"><div id="dmHeader"></div><div id="messages"></div><div id="inputArea"><textarea id="dmInput" placeholder="Select a DM..."></textarea><button id="dmSendBtn" disabled>Send</button></div></div>
+  <div id="friendsView"><input id="addFriendInput" class="input" placeholder="Add friend..."><button id="addFriendBtn" class="btn-small">Add</button><div id="friendsList"></div></div>
+  <div id="newsView"><div id="newsFeed"></div></div>
+  <div id="shopView"><div id="pointsDisplay">Points: 0</div><div id="shopItems"></div></div>
+  <div id="gamesView"><div id="gameContainer"><h4>Number Guessing</h4><p id="gameInstructions"></p><div id="gameArea"></div><button id="playBtn">Play</button><p id="gameResult"></p></div></div>
+  <div id="globalView"><div id="globalHeader">Global Chat</div><div id="globalMessages"></div><div id="globalInputArea"><textarea id="globalMsgInput" placeholder="Say something..."></textarea><button id="globalSendBtn">Send</button></div></div>
+  <div id="settingsView">
+    <input id="nameInput" class="input" placeholder="Name">
+    <input id="bioInput" class="input" placeholder="Bio">
+    <select id="themeSelect" class="input"><option value="dark">Dark</option><option value="light">Light</option></select>
+    <select id="statusSelect" class="input"><option value="online">Online</option><option value="idle">Idle</option><option value="dnd">DND</option><option value="invisible">Invisible</option></select>
+    <input id="avatarInput" type="file" accept="image/*">
+    <img id="avatarPreview" src="" style="width:100px;height:100px;border-radius:50%;margin:10px 0;">
+    <button class="btn">Save Settings</button>
+    <button class="btn">Logout</button>
   </div>
 
   <!-- USER PANEL -->
@@ -193,14 +164,13 @@
     <span id="userBio"></span>
   </div>
 
-  <!-- CONNECTION STATUS -->
+  <!-- CONNECTION -->
   <div id="connectionStatus" class="status-connecting">Connecting...</div>
 
   <script>
-    // GLOBALS
-    const socket = io(location.origin, { transports: ['websocket', 'polling'], reconnectionAttempts: 5 });
-    let myName = null, currentServer = 'home', currentChannel = 'general';
-    let servers = {}, onlineUsers = {}, messages = {}, points = 0;
+    const socket = io(location.origin, { transports: ['websocket', 'polling'] });
+    let myName = null, currentServer = null, currentChannel = null;
+    let servers = {}, onlineUsers = {}, messages = {}, friends = {}, points = 0;
 
     const els = {
       loginScreen: document.getElementById('loginScreen'),
@@ -217,83 +187,57 @@
       globalSendBtn: document.getElementById('globalSendBtn')
     };
 
-    function showNotification(msg) {
-      els.notifications.textContent = msg;
-      els.notifications.style.display = 'block';
-      setTimeout(() => els.notifications.style.display = 'none', 3000);
-    }
+    function show(msg) { els.notifications.textContent = msg; els.notifications.style.display = 'block'; setTimeout(() => els.notifications.style.display = 'none', 3000); }
 
     // LOGIN
     let isSignup = false;
     document.getElementById('authBtn').onclick = () => {
       const u = document.getElementById('username').value.trim();
       const p = document.getElementById('password').value;
-      if (!u || !p) return showNotification('Fill all fields');
+      if (!u || !p) return show('Fill all');
       isSignup ? signup(u, p) : login(u, p);
     };
     document.getElementById('switchLink').onclick = () => {
       isSignup = !isSignup;
       document.getElementById('loginTitle').textContent = isSignup ? 'Create Account' : 'Sign In';
       document.getElementById('authBtn').textContent = isSignup ? 'Sign Up' : 'Sign In';
-      document.getElementById('switchText').innerHTML = isSignup ? 'Have an account? ' : "Don't have an account? ";
-      document.getElementById('switchLink').textContent = isSignup ? 'Sign In' : 'Create one';
     };
 
     function signup(u, p) {
-      if (u.length < 3 || p.length < 4) return showNotification('Username 3+, Password 4+');
+      if (u.length < 3 || p.length < 4) return show('Username 3+, Password 4+');
       const key = `user_${u}`;
-      if (localStorage.getItem(key)) return showNotification('Username taken');
-      const userData = { password: p, points: 0, servers: { home: { name: 'Home', channels: ['general'], members: [u] }}};
-      localStorage.setItem(key, JSON.stringify(userData));
-      showNotification('Account created!');
+      if (localStorage.getItem(key)) return show('Taken');
+      localStorage.setItem(key, JSON.stringify({ password: p, points: 0, servers: {}, settings: {} }));
+      show('Created');
       login(u, p);
     }
 
     function login(u, p) {
       const key = `user_${u}`;
       const data = localStorage.getItem(key);
-      if (!data || JSON.parse(data).password !== p) return showNotification('Wrong credentials');
+      if (!data || JSON.parse(data).password !== p) return show('Wrong');
       localStorage.setItem('ghostcordAccount', JSON.stringify({ username: u, password: p }));
       els.loginScreen.style.display = 'none';
       myName = u;
       initApp();
     }
 
-    // AUTO LOGIN
     const saved = localStorage.getItem('ghostcordAccount');
-    if (saved) {
-      const { username, password } = JSON.parse(saved);
-      login(username, password);
-    }
+    if (saved) { const { username, password } = JSON.parse(saved); login(username, password); }
 
     function initApp() {
-      const userData = JSON.parse(localStorage.getItem(`user_${myName}`));
-      servers = userData.servers || { home: { name: 'Home', channels: ['general'], members: [myName] }};
+      const userData = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+      servers = userData.servers || {};
       points = userData.points || 0;
       messages = JSON.parse(localStorage.getItem('ghostcordMessages') || '{}');
+      friends = JSON.parse(localStorage.getItem('ghostcordFriends') || '{}');
 
-      // SOCKET
       socket.emit('join', { name: myName });
 
-      socket.on('connect', () => {
-        els.connectionStatus.textContent = 'Connected';
-        els.connectionStatus.className = 'status-connected';
-      });
-
-      socket.on('users', list => {
-        onlineUsers = list;
-        updatePlayers();
-      });
-
-      socket.on('userOnline', d => {
-        onlineUsers[d.name] = 'online';
-        updatePlayers();
-      });
-
-      socket.on('userOffline', d => {
-        delete onlineUsers[d.name];
-        updatePlayers();
-      });
+      socket.on('connect', () => { els.connectionStatus.textContent = 'Connected'; els.connectionStatus.className = 'status-connected'; });
+      socket.on('users', list => { onlineUsers = list; updatePlayers(); updateFriendsList(); });
+      socket.on('userOnline', d => { onlineUsers[d.name] = 'online'; updatePlayers(); updateFriendsList(); });
+      socket.on('userOffline', d => { delete onlineUsers[d.name]; updatePlayers(); updateFriendsList(); });
 
       socket.on('channelMessage', data => {
         const key = `${data.server}:${data.channel}`;
@@ -307,15 +251,14 @@
         messages.global = messages.global || [];
         messages.global.push(msg);
         saveMessages();
-        appendGlobalMessage(msg);
+        if (document.getElementById('globalView').style.display !== 'none') appendGlobal(msg);
       });
 
-      // UI
       renderServers();
       loadSettings();
-      updateClock();
-      setInterval(updateClock, 60000);
+      updateClock(); setInterval(updateClock, 60000);
       bindEvents();
+      showTab('home');
     }
 
     function updateClock() {
@@ -325,28 +268,22 @@
       els.clock.textContent = `${time} CST, ${date}`;
     }
 
-    function updatePlayers() {
-      els.playersOnline.textContent = `Players: ${Object.keys(onlineUsers).length}`;
-    }
+    function updatePlayers() { els.playersOnline.textContent = `Players: ${Object.keys(onlineUsers).length}`; }
 
     function renderServers() {
       const list = document.getElementById('servers');
-      list.innerHTML = '';
+      list.innerHTML = '<div class="srv add" id="addServerBtn">+</div>';
       Object.entries(servers).forEach(([id, s]) => {
         const div = document.createElement('div');
         div.className = 'srv';
         div.textContent = s.name[0].toUpperCase();
-        div.dataset.name = s.name;
         div.dataset.id = id;
+        div.dataset.name = s.name;
         div.onclick = () => switchServer(id);
         if (id === currentServer) div.style.background = '#0f0';
-        list.appendChild(div);
+        list.insertBefore(div, list.firstChild);
       });
-      const add = document.createElement('div');
-      add.className = 'srv add';
-      add.textContent = '+';
-      add.onclick = createServer;
-      list.appendChild(add);
+      document.getElementById('addServerBtn').onclick = createServer;
     }
 
     function createServer() {
@@ -362,8 +299,8 @@
     function switchServer(id) {
       currentServer = id;
       const s = servers[id];
-      const channelList = document.getElementById('channelList');
-      channelList.innerHTML = '';
+      const cl = document.getElementById('channelList');
+      cl.innerHTML = '';
       s.channels.forEach(ch => {
         const div = document.createElement('div');
         div.className = 'chan';
@@ -374,15 +311,17 @@
           div.classList.add('active');
           currentChannel = ch;
           document.getElementById('msgInput').placeholder = `Message #${ch}...`;
-          loadChannelMessages();
+          document.getElementById('sendBtn').disabled = false;
+          loadMessages();
         };
         if (ch === 'general') div.classList.add('active');
-        channelList.appendChild(div);
+        cl.appendChild(div);
       });
       renderServers();
       document.getElementById('messages').innerHTML = '';
       currentChannel = 'general';
-      loadChannelMessages();
+      loadMessages();
+      document.getElementById('sendBtn').disabled = false;
     }
 
     function removeChannel(ch) {
@@ -392,12 +331,12 @@
       switchServer(currentServer);
     }
 
-    function loadChannelMessages() {
+    function loadMessages() {
       const key = `${currentServer}:${currentChannel}`;
       const msgs = messages[key] || [];
       const el = document.getElementById('messages');
       el.innerHTML = '';
-      msgs.forEach(m => appendMessage(m));
+      msgs.forEach(appendMessage);
     }
 
     function appendMessage(msg) {
@@ -410,7 +349,7 @@
       el.scrollTop = el.scrollHeight;
     }
 
-    function appendGlobalMessage(msg) {
+    function appendGlobal(msg) {
       const m = document.createElement('div');
       m.className = `msg ${msg.user === myName ? 'own' : ''}`;
       m.innerHTML = `<strong>[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
@@ -418,17 +357,17 @@
       els.globalMessages.scrollTop = els.globalMessages.scrollHeight;
     }
 
-    function sendChannelMessage() {
+    function sendChannel() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
-      if (!text) return;
+      if (!text || !currentServer) return;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const msg = { user: myName, text, time };
       socket.emit('channelMessage', { server: currentServer, channel: currentChannel, msg });
       input.value = '';
     }
 
-    function sendGlobalMessage() {
+    function sendGlobal() {
       const text = els.globalMsgInput.value.trim();
       if (!text) return;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -436,27 +375,163 @@
       els.globalMsgInput.value = '';
     }
 
+    function updateFriendsList() {
+      const list = document.getElementById('friendsList');
+      if (!list) return;
+      list.innerHTML = '';
+      Object.entries(friends).forEach(([name, status]) => {
+        const div = document.createElement('div');
+        div.className = `friend ${status === 'online' ? '' : 'offline'} ${status === 'pending' ? 'pending' : ''}`;
+        const color = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', invisible: 'var(--invisible)', pending: '#666' }[status] || '#666';
+        div.innerHTML = `<div class="status-dot" style="background:${color}"></div><span>${name}</span>`;
+        if (status === 'pending') {
+          const accept = document.createElement('button'); accept.className = 'accept-btn'; accept.textContent = 'Accept';
+          accept.onclick = () => { friends[name] = 'online'; saveFriends(); updateFriendsList(); socket.emit('acceptFriend', name); };
+          const reject = document.createElement('button'); reject.className = 'reject-btn'; reject.textContent = 'Reject';
+          reject.onclick = () => { delete friends[name]; saveFriends(); updateFriendsList(); };
+          div.appendChild(accept); div.appendChild(reject);
+        } else {
+          div.onclick = () => openDM(name);
+        }
+        list.appendChild(div);
+      });
+    }
+
+    function addFriend() {
+      const name = document.getElementById('addFriendInput').value.trim();
+      if (!name || name === myName || friends[name]) return show('Invalid');
+      friends[name] = 'pending';
+      saveFriends();
+      updateFriendsList();
+      socket.emit('friendRequest', { to: name });
+      show(`Sent request to ${name}`);
+    }
+
+    function openDM(user) {
+      showTab('dms');
+      document.getElementById('dmHeader').textContent = `@${user}`;
+      const key = `dm:${user}`;
+      messages[key] = messages[key] || [];
+      const el = document.getElementById('messages');
+      el.innerHTML = '';
+      messages[key].forEach(m => appendMessage(m));
+      document.getElementById('dmInput').placeholder = `Message @${user}...`;
+      document.getElementById('dmSendBtn').disabled = false;
+      document.getElementById('dmSendBtn').onclick = () => {
+        const text = document.getElementById('dmInput').value.trim();
+        if (!text) return;
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const msg = { user: myName, text, time };
+        socket.emit('dm', { to: user, msg });
+        document.getElementById('dmInput').value = '';
+        messages[`dm:${user}`].push(msg);
+        saveMessages();
+        appendMessage(msg);
+      };
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+      document.getElementById('app').style.display = tab === 'home' ? 'flex' : 'none';
+      document.getElementById('dmView').style.display = tab === 'dms' ? 'flex' : 'none';
+      document.getElementById('friendsView').style.display = tab === 'friends' ? 'flex' : 'none';
+      document.getElementById('newsView').style.display = tab === 'news' ? 'flex' : 'none';
+      document.getElementById('shopView').style.display = tab === 'shop' ? 'flex' : 'none';
+      document.getElementById('gamesView').style.display = tab === 'games' ? 'flex' : 'none';
+      document.getElementById('globalView').style.display = tab === 'global' ? 'flex' : 'none';
+      document.getElementById('settingsView').style.display = tab === 'settings' ? 'block' : 'none';
+
+      if (tab === 'global') { els.globalMessages.innerHTML = ''; (messages.global || []).forEach(appendGlobal); }
+      if (tab === 'news') updateNews();
+      if (tab === 'shop') updateShop();
+      if (tab === 'games') initGame();
+      if (tab === 'settings') loadSettingsForm();
+    }
+
+    function updateNews() {
+      const feed = document.getElementById('newsFeed');
+      feed.innerHTML = '';
+      const items = [{title:'Welcome!',content:'GHOSTCORD v6.2 is live!'},{title:'Update',content:'Global chat fixed.'}];
+      items.forEach(i => {
+        const d = document.createElement('div'); d.className = 'news-item';
+        d.innerHTML = `<h4>${i.title}</h4><p>${i.content}</p>`;
+        feed.appendChild(d);
+      });
+    }
+
+    function updateShop() {
+      document.getElementById('pointsDisplay').textContent = `Points: ${points}`;
+      const items = document.getElementById('shopItems');
+      items.innerHTML = '';
+      const shop = { glow: {name:'Glow',cost:50}, pulse: {name:'Pulse',cost:75} };
+      Object.entries(shop).forEach(([id, item]) => {
+        const d = document.createElement('div'); d.className = 'shop-item';
+        d.innerHTML = `<div><h4>${item.name}</h4><p>${item.cost} pts</p></div><button class="buy-btn" ${points < item.cost ? 'disabled' : ''}>Buy</button>`;
+        d.querySelector('.buy-btn').onclick = () => {
+          if (points >= item.cost) { points -= item.cost; saveUserData(); updateShop(); show(`Bought ${item.name}`); }
+        };
+        items.appendChild(d);
+      });
+    }
+
+    function initGame() {
+      const target = Math.floor(Math.random() * 100) + 1;
+      document.getElementById('gameInstructions').textContent = 'Guess 1-100';
+      document.getElementById('gameResult').textContent = '';
+      const area = document.getElementById('gameArea');
+      area.innerHTML = '';
+      const input = document.createElement('input'); input.type = 'number'; input.min = 1; input.max = 100; input.className = 'input';
+      const btn = document.createElement('button'); btn.textContent = 'Guess'; btn.className = 'btn-small';
+      btn.onclick = () => {
+        const guess = parseInt(input.value);
+        if (guess === target) { points += 10; saveUserData(); document.getElementById('gameResult').textContent = 'Correct! +10 pts'; }
+        else document.getElementById('gameResult').textContent = guess < target ? 'Too low' : 'Too high';
+      };
+      area.appendChild(input); area.appendChild(btn);
+    }
+
+    function loadSettingsForm() {
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}').settings || {};
+      document.getElementById('nameInput').value = myName;
+      document.getElementById('bioInput').value = data.bio || '';
+      document.getElementById('themeSelect').value = data.theme || 'dark';
+      document.getElementById('statusSelect').value = data.status || 'online';
+      document.getElementById('avatarPreview').src = data.avatar || '';
+    }
+
+    function saveSettings() {
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+      data.settings = data.settings || {};
+      data.settings.bio = document.getElementById('bioInput').value;
+      data.settings.theme = document.getElementById('themeSelect').value;
+      data.settings.status = document.getElementById('statusSelect').value;
+      const file = document.getElementById('avatarInput').files[0];
+      if (file) {
+        const r = new FileReader();
+        r.onload = e => { data.settings.avatar = e.target.result; localStorage.setItem(`user_${myName}`, JSON.stringify(data)); loadSettings(); show('Saved'); };
+        r.readAsDataURL(file);
+      } else {
+        localStorage.setItem(`user_${myName}`, JSON.stringify(data));
+        loadSettings();
+        show('Saved');
+      }
+    }
+
     function loadSettings() {
-      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-      const s = data.settings || {};
-      document.body.style.setProperty('--wallpaper', s.wallpaper ? `url(${s.wallpaper})` : 'none');
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}').settings || {};
+      document.body.dataset.theme = data.theme || 'dark';
+      document.body.style.setProperty('--wallpaper', data.wallpaper ? `url(${data.wallpaper})` : 'none');
       els.userName.textContent = myName;
-      els.userBio.textContent = s.bio || '';
-      els.userStatus.textContent = s.status || 'online';
-      els.userStatus.style.color = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', invisible: 'var(--invisible)' }[s.status] || 'var(--online)';
-      if (s.avatar) els.userAvatar.src = s.avatar;
+      els.userBio.textContent = data.bio || '';
+      els.userStatus.textContent = data.status || 'online';
+      els.userStatus.style.color = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', invisible: 'var(--invisible)' }[data.status] || 'var(--online)';
+      if (data.avatar) els.userAvatar.src = data.avatar;
     }
 
-    function saveUserData() {
-      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-      data.servers = servers;
-      data.points = points;
-      localStorage.setItem(`user_${myName}`, JSON.stringify(data));
-    }
-
-    function saveMessages() {
-      localStorage.setItem('ghostcordMessages', JSON.stringify(messages));
-    }
+    function saveUserData() { localStorage.setItem(`user_${myName}`, JSON.stringify({ servers, points, settings: JSON.parse(localStorage.getItem(`user_${myName}`) || '{}').settings })); }
+    function saveMessages() { localStorage.setItem('ghostcordMessages', JSON.stringify(messages)); }
+    function saveFriends() { localStorage.setItem('ghostcordFriends', JSON.stringify(friends)); }
 
     function bindEvents() {
       document.getElementById('addChannelBtn').onclick = () => {
@@ -467,30 +542,24 @@
           switchServer(currentServer);
         }
       };
-
-      document.getElementById('sendBtn').onclick = sendChannelMessage;
-      document.getElementById('msgInput').onkeydown = e => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChannelMessage(); }
-      };
-
-      els.globalSendBtn.onclick = sendGlobalMessage;
-      els.globalMsgInput.onkeydown = e => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGlobalMessage(); }
-      };
-
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.onclick = () => {
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          document.getElementById('app').style.display = tab.dataset.tab === 'home' ? 'flex' : 'none';
-          document.getElementById('globalView').style.display = tab.dataset.tab === 'global' ? 'flex' : 'none';
-          if (tab.dataset.tab === 'global') {
-            els.globalMessages.innerHTML = '';
-            (messages.global || []).forEach(appendGlobalMessage);
-          }
-        };
-      });
+      document.getElementById('sendBtn').onclick = sendChannel;
+      document.getElementById('msgInput').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChannel(); } };
+      els.globalSendBtn.onclick = sendGlobal;
+      els.globalMsgInput.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGlobal(); } };
+      document.getElementById('addFriendBtn').onclick = addFriend;
+      document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
+      document.querySelector('.btn').onclick = saveSettings;
+      document.querySelectorAll('.btn')[1].onclick = () => { if (confirm('Logout?')) { localStorage.removeItem('ghostcordAccount'); location.reload(); } };
     }
+
+    socket.on('friendRequest', d => { friends[d.from] = 'pending'; saveFriends(); updateFriendsList(); show(`Friend request from ${d.from}`); });
+    socket.on('dm', data => {
+      const key = `dm:${data.from}`;
+      messages[key] = messages[key] || [];
+      messages[key].push(data.msg);
+      saveMessages();
+      if (document.getElementById('dmView').style.display !== 'none' && document.getElementById('dmHeader').textContent === `@${data.from}`) appendMessage(data.msg);
+    });
   </script>
 </body>
 </html>
