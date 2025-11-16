@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GHOSTCORD v6.2</title>
+  <title>GHOSTCORD v6.3</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
@@ -49,7 +49,7 @@
     .msg{max-width:70%;padding:12px 16px;background:var(--card);border-left:4px solid var(--c1);border-radius:var(--radius);align-self:flex-start;word-wrap:break-word;box-shadow:0 1px 3px rgba(0,0,0,.2);}
     .msg.own{align-self:flex-end;background:#1a1a1a;border-left:none;border-right:4px solid var(--c2);}
     .msg strong{color:var(--c2);}
-    #inputArea{display:flex;padding:16px;background:rgba(0,0,0,.9);border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);margin-bottom:70px;position:relative;z-index:1002;}
+    #inputArea{position:sticky;bottom:0;background:rgba(0,0,0,.9);padding:16px;border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);z-index:1002;display:flex;}
     #msgInput{flex:1;background:var(--card);border:2px solid transparent;color:var(--text);padding:14px 18px;border-radius:12px;outline:none;font-size:16px;min-height:50px;resize:none;transition:var(--transition);}
     #msgInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
     #sendBtn{background:var(--c1);color:#000;border:none;padding:0 24px;border-radius:12px;cursor:pointer;font-weight:bold;height:50px;min-width:80px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
@@ -71,7 +71,7 @@
     .buy-btn:disabled{background:#666;cursor:not-allowed;}
     #pointsDisplay{color:var(--c1);font-weight:600;margin-bottom:10px;}
     #playBtn{background:var(--c1);color:#000;padding:8px 16px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);}
-    #globalInputArea{display:flex;padding:16px;background:rgba(0,0,0,.9);border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);margin-bottom:70px;position:relative;z-index:1002;}
+    #globalInputArea{position:sticky;bottom:0;background:rgba(0,0,0,.9);padding:16px;border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);z-index:1002;display:flex;}
     #globalMsgInput{flex:1;background:var(--card);border:2px solid transparent;color:var(--text);padding:14px 18px;border-radius:12px;outline:none;font-size:16px;min-height:50px;resize:none;transition:var(--transition);}
     #globalSendBtn{background:var(--c1);color:#000;border:none;padding:0 24px;border-radius:12px;cursor:pointer;font-weight:bold;height:50px;min-width:80px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
     #userPanel{position:fixed;bottom:0;left:0;width:100%;background:rgba(0,0,0,.9);padding:10px 16px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--border);z-index:1000;backdrop-filter:blur(10px);height:60px;}
@@ -138,13 +138,37 @@
     </div>
   </div>
 
-  <!-- OTHER VIEWS -->
-  <div id="dmView"><div id="dmHeader"></div><div id="messages"></div><div id="inputArea"><textarea id="dmInput" placeholder="Select a DM..."></textarea><button id="dmSendBtn" disabled>Send</button></div></div>
-  <div id="friendsView"><input id="addFriendInput" class="input" placeholder="Add friend..."><button id="addFriendBtn" class="btn-small">Add</button><div id="friendsList"></div></div>
+  <!-- DMs -->
+  <div id="dmView">
+    <div id="dmHeader">Select a DM</div>
+    <div id="messages"></div>
+    <div id="inputArea">
+      <textarea id="dmInput" placeholder="Select a DM..."></textarea>
+      <button id="dmSendBtn" disabled>Send</button>
+    </div>
+  </div>
+
+  <!-- Friends -->
+  <div id="friendsView">
+    <input id="addFriendInput" class="input" placeholder="Add friend...">
+    <button id="addFriendBtn" class="btn-small">Add</button>
+    <div id="friendsList"></div>
+  </div>
+
+  <!-- News, Shop, Games, Global -->
   <div id="newsView"><div id="newsFeed"></div></div>
   <div id="shopView"><div id="pointsDisplay">Points: 0</div><div id="shopItems"></div></div>
   <div id="gamesView"><div id="gameContainer"><h4>Number Guessing</h4><p id="gameInstructions"></p><div id="gameArea"></div><button id="playBtn">Play</button><p id="gameResult"></p></div></div>
-  <div id="globalView"><div id="globalHeader">Global Chat</div><div id="globalMessages"></div><div id="globalInputArea"><textarea id="globalMsgInput" placeholder="Say something..."></textarea><button id="globalSendBtn">Send</button></div></div>
+  <div id="globalView">
+    <div id="globalHeader">Global Chat</div>
+    <div id="globalMessages"></div>
+    <div id="globalInputArea">
+      <textarea id="globalMsgInput" placeholder="Say something..."></textarea>
+      <button id="globalSendBtn">Send</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
   <div id="settingsView">
     <input id="nameInput" class="input" placeholder="Name">
     <input id="bioInput" class="input" placeholder="Bio">
@@ -152,8 +176,8 @@
     <select id="statusSelect" class="input"><option value="online">Online</option><option value="idle">Idle</option><option value="dnd">DND</option><option value="invisible">Invisible</option></select>
     <input id="avatarInput" type="file" accept="image/*">
     <img id="avatarPreview" src="" style="width:100px;height:100px;border-radius:50%;margin:10px 0;">
-    <button class="btn">Save Settings</button>
-    <button class="btn">Logout</button>
+    <button id="saveSettingsBtn" class="btn">Save Settings</button>
+    <button id="logoutBtn" class="btn">Logout</button>
   </div>
 
   <!-- USER PANEL -->
@@ -169,7 +193,7 @@
 
   <script>
     const socket = io(location.origin, { transports: ['websocket', 'polling'] });
-    let myName = null, currentServer = null, currentChannel = null;
+    let myName = null, currentServer = null, currentChannel = null, currentDM = null;
     let servers = {}, onlineUsers = {}, messages = {}, friends = {}, points = 0;
 
     const els = {
@@ -207,7 +231,7 @@
       if (u.length < 3 || p.length < 4) return show('Username 3+, Password 4+');
       const key = `user_${u}`;
       if (localStorage.getItem(key)) return show('Taken');
-      localStorage.setItem(key, JSON.stringify({ password: p, points: 0, servers: {}, settings: {} }));
+      localStorage.setItem(key, JSON.stringify({ password: p, points: 0, servers: {}, settings: {}, friends: {} }));
       show('Created');
       login(u, p);
     }
@@ -230,7 +254,7 @@
       servers = userData.servers || {};
       points = userData.points || 0;
       messages = JSON.parse(localStorage.getItem('ghostcordMessages') || '{}');
-      friends = JSON.parse(localStorage.getItem('ghostcordFriends') || '{}');
+      friends = userData.friends || {};
 
       socket.emit('join', { name: myName });
 
@@ -244,14 +268,30 @@
         messages[key] = messages[key] || [];
         messages[key].push(data.msg);
         saveMessages();
-        if (currentServer === data.server && currentChannel === data.channel) appendMessage(data.msg);
+        if (currentServer === data.server && currentChannel === data.channel) appendMessage(data.msg, 'messages');
       });
 
       socket.on('globalMessage', msg => {
         messages.global = messages.global || [];
         messages.global.push(msg);
         saveMessages();
-        if (document.getElementById('globalView').style.display !== 'none') appendGlobal(msg);
+        if (document.getElementById('globalView').style.display !== 'none') appendMessage(msg, 'globalMessages');
+      });
+
+      socket.on('friendRequest', d => {
+        if (d.from === myName) return;
+        friends[d.from] = 'pending';
+        saveUserData();
+        updateFriendsList();
+        show(`Friend request from ${d.from}`);
+      });
+
+      socket.on('dm', data => {
+        const key = `dm:${data.from}`;
+        messages[key] = messages[key] || [];
+        messages[key].push(data.msg);
+        saveMessages();
+        if (currentDM === data.from) appendMessage(data.msg, 'messages');
       });
 
       renderServers();
@@ -312,7 +352,7 @@
           currentChannel = ch;
           document.getElementById('msgInput').placeholder = `Message #${ch}...`;
           document.getElementById('sendBtn').disabled = false;
-          loadMessages();
+          loadMessages('messages');
         };
         if (ch === 'general') div.classList.add('active');
         cl.appendChild(div);
@@ -320,7 +360,7 @@
       renderServers();
       document.getElementById('messages').innerHTML = '';
       currentChannel = 'general';
-      loadMessages();
+      loadMessages('messages');
       document.getElementById('sendBtn').disabled = false;
     }
 
@@ -331,30 +371,22 @@
       switchServer(currentServer);
     }
 
-    function loadMessages() {
-      const key = `${currentServer}:${currentChannel}`;
+    function loadMessages(containerId) {
+      const key = currentDM ? `dm:${currentDM}` : `${currentServer}:${currentChannel}`;
       const msgs = messages[key] || [];
-      const el = document.getElementById('messages');
+      const el = document.getElementById(containerId);
       el.innerHTML = '';
-      msgs.forEach(appendMessage);
+      msgs.forEach(m => appendMessage(m, containerId));
     }
 
-    function appendMessage(msg) {
-      const el = document.getElementById('messages');
+    function appendMessage(msg, containerId) {
+      const el = document.getElementById(containerId);
       const own = msg.user === myName;
       const m = document.createElement('div');
       m.className = `msg ${own ? 'own' : ''}`;
       m.innerHTML = `<strong>[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
       el.appendChild(m);
       el.scrollTop = el.scrollHeight;
-    }
-
-    function appendGlobal(msg) {
-      const m = document.createElement('div');
-      m.className = `msg ${msg.user === myName ? 'own' : ''}`;
-      m.innerHTML = `<strong>[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
-      els.globalMessages.appendChild(m);
-      els.globalMessages.scrollTop = els.globalMessages.scrollHeight;
     }
 
     function sendChannel() {
@@ -364,6 +396,16 @@
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const msg = { user: myName, text, time };
       socket.emit('channelMessage', { server: currentServer, channel: currentChannel, msg });
+      input.value = '';
+    }
+
+    function sendDM() {
+      const input = document.getElementById('dmInput');
+      const text = input.value.trim();
+      if (!text || !currentDM) return;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const msg = { user: myName, text, time };
+      socket.emit('dm', { to: currentDM, msg });
       input.value = '';
     }
 
@@ -381,14 +423,19 @@
       list.innerHTML = '';
       Object.entries(friends).forEach(([name, status]) => {
         const div = document.createElement('div');
-        div.className = `friend ${status === 'online' ? '' : 'offline'} ${status === 'pending' ? 'pending' : ''}`;
-        const color = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', invisible: 'var(--invisible)', pending: '#666' }[status] || '#666';
+        div.className = `friend ${status === 'online' ? '' : status === 'pending' ? 'pending' : 'offline'}`;
+        const color = status === 'online' ? 'var(--online)' : status === 'pending' ? '#666' : '#666';
         div.innerHTML = `<div class="status-dot" style="background:${color}"></div><span>${name}</span>`;
         if (status === 'pending') {
           const accept = document.createElement('button'); accept.className = 'accept-btn'; accept.textContent = 'Accept';
-          accept.onclick = () => { friends[name] = 'online'; saveFriends(); updateFriendsList(); socket.emit('acceptFriend', name); };
+          accept.onclick = () => {
+            friends[name] = 'online';
+            saveUserData();
+            updateFriendsList();
+            socket.emit('acceptFriend', { to: name });
+          };
           const reject = document.createElement('button'); reject.className = 'reject-btn'; reject.textContent = 'Reject';
-          reject.onclick = () => { delete friends[name]; saveFriends(); updateFriendsList(); };
+          reject.onclick = () => { delete friends[name]; saveUserData(); updateFriendsList(); };
           div.appendChild(accept); div.appendChild(reject);
         } else {
           div.onclick = () => openDM(name);
@@ -401,33 +448,20 @@
       const name = document.getElementById('addFriendInput').value.trim();
       if (!name || name === myName || friends[name]) return show('Invalid');
       friends[name] = 'pending';
-      saveFriends();
+      saveUserData();
       updateFriendsList();
       socket.emit('friendRequest', { to: name });
       show(`Sent request to ${name}`);
     }
 
     function openDM(user) {
+      currentDM = user;
       showTab('dms');
       document.getElementById('dmHeader').textContent = `@${user}`;
-      const key = `dm:${user}`;
-      messages[key] = messages[key] || [];
-      const el = document.getElementById('messages');
-      el.innerHTML = '';
-      messages[key].forEach(m => appendMessage(m));
+      loadMessages('messages');
       document.getElementById('dmInput').placeholder = `Message @${user}...`;
       document.getElementById('dmSendBtn').disabled = false;
-      document.getElementById('dmSendBtn').onclick = () => {
-        const text = document.getElementById('dmInput').value.trim();
-        if (!text) return;
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const msg = { user: myName, text, time };
-        socket.emit('dm', { to: user, msg });
-        document.getElementById('dmInput').value = '';
-        messages[`dm:${user}`].push(msg);
-        saveMessages();
-        appendMessage(msg);
-      };
+      document.getElementById('dmSendBtn').onclick = sendDM;
     }
 
     function showTab(tab) {
@@ -442,7 +476,7 @@
       document.getElementById('globalView').style.display = tab === 'global' ? 'flex' : 'none';
       document.getElementById('settingsView').style.display = tab === 'settings' ? 'block' : 'none';
 
-      if (tab === 'global') { els.globalMessages.innerHTML = ''; (messages.global || []).forEach(appendGlobal); }
+      if (tab === 'global') { document.getElementById('globalMessages').innerHTML = ''; (messages.global || []).forEach(m => appendMessage(m, 'globalMessages')); }
       if (tab === 'news') updateNews();
       if (tab === 'shop') updateShop();
       if (tab === 'games') initGame();
@@ -451,20 +485,14 @@
 
     function updateNews() {
       const feed = document.getElementById('newsFeed');
-      feed.innerHTML = '';
-      const items = [{title:'Welcome!',content:'GHOSTCORD v6.2 is live!'},{title:'Update',content:'Global chat fixed.'}];
-      items.forEach(i => {
-        const d = document.createElement('div'); d.className = 'news-item';
-        d.innerHTML = `<h4>${i.title}</h4><p>${i.content}</p>`;
-        feed.appendChild(d);
-      });
+      feed.innerHTML = '<div class="news-item"><h4>Welcome!</h4><p>GHOSTCORD v6.3 is live!</p></div>';
     }
 
     function updateShop() {
       document.getElementById('pointsDisplay').textContent = `Points: ${points}`;
       const items = document.getElementById('shopItems');
       items.innerHTML = '';
-      const shop = { glow: {name:'Glow',cost:50}, pulse: {name:'Pulse',cost:75} };
+      const shop = { glow: {name:'Glow',cost:50} };
       Object.entries(shop).forEach(([id, item]) => {
         const d = document.createElement('div'); d.className = 'shop-item';
         d.innerHTML = `<div><h4>${item.name}</h4><p>${item.cost} pts</p></div><button class="buy-btn" ${points < item.cost ? 'disabled' : ''}>Buy</button>`;
@@ -518,6 +546,13 @@
       }
     }
 
+    function logout() {
+      if (confirm('Logout?')) {
+        localStorage.removeItem('ghostcordAccount');
+        location.reload();
+      }
+    }
+
     function loadSettings() {
       const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}').settings || {};
       document.body.dataset.theme = data.theme || 'dark';
@@ -529,9 +564,14 @@
       if (data.avatar) els.userAvatar.src = data.avatar;
     }
 
-    function saveUserData() { localStorage.setItem(`user_${myName}`, JSON.stringify({ servers, points, settings: JSON.parse(localStorage.getItem(`user_${myName}`) || '{}').settings })); }
+    function saveUserData() {
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+      data.servers = servers;
+      data.points = points;
+      data.friends = friends;
+      localStorage.setItem(`user_${myName}`, JSON.stringify(data));
+    }
     function saveMessages() { localStorage.setItem('ghostcordMessages', JSON.stringify(messages)); }
-    function saveFriends() { localStorage.setItem('ghostcordFriends', JSON.stringify(friends)); }
 
     function bindEvents() {
       document.getElementById('addChannelBtn').onclick = () => {
@@ -544,21 +584,19 @@
       };
       document.getElementById('sendBtn').onclick = sendChannel;
       document.getElementById('msgInput').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChannel(); } };
+      document.getElementById('dmInput').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDM(); } };
       els.globalSendBtn.onclick = sendGlobal;
       els.globalMsgInput.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGlobal(); } };
       document.getElementById('addFriendBtn').onclick = addFriend;
       document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
-      document.querySelector('.btn').onclick = saveSettings;
-      document.querySelectorAll('.btn')[1].onclick = () => { if (confirm('Logout?')) { localStorage.removeItem('ghostcordAccount'); location.reload(); } };
+      document.getElementById('saveSettingsBtn').onclick = saveSettings;
+      document.getElementById('logoutBtn').onclick = logout;
     }
 
-    socket.on('friendRequest', d => { friends[d.from] = 'pending'; saveFriends(); updateFriendsList(); show(`Friend request from ${d.from}`); });
-    socket.on('dm', data => {
-      const key = `dm:${data.from}`;
-      messages[key] = messages[key] || [];
-      messages[key].push(data.msg);
-      saveMessages();
-      if (document.getElementById('dmView').style.display !== 'none' && document.getElementById('dmHeader').textContent === `@${data.from}`) appendMessage(data.msg);
+    socket.on('acceptFriend', d => {
+      if (friends[d.from]) friends[d.from] = 'online';
+      saveUserData();
+      updateFriendsList();
     });
   </script>
 </body>
