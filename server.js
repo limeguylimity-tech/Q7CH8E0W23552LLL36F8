@@ -12,74 +12,146 @@ const io = socketIo(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const users = new Map();        // socket.id → { name, socket }
+const users = new Map();        // socket.id → { name, status }
 const friendRequests = new Map(); // requesterId → targetId
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  // Set username
-  socket.on('setUser', (data) => {
+  // ✅ JOIN - User connects with name
+  socket.on('join', (data) => {
     const name = data.name.trim() || 'Guest';
-    users.set(socket.id, { name, socket });
-    socket.broadcast.emit('userOnline', { id: socket.id, name });
-    console.log(`${name} is online`);
+    users.set(socket.id, { name, status: 'online' });
+    console.log(`${name} joined`);
+    
+    // Send all users to the new user
+    const userList = {};
+    users.forEach((user, id) => {
+      userList[user.name] = user.status;
+    });
+    io.emit('users', userList);
   });
 
-  // Send message
-  socket.on('sendMsg', (msg) => {
+  // ✅ CHAT MESSAGE - Global chat
+  socket.on('msg', (data) => {
     const user = users.get(socket.id);
     if (!user) return;
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const payload = { msg: { user: user.name, text: msg.text, time } };
-    io.emit('msg', payload); // broadcast to all
+    
+    console.log(`Message from ${user.name}:`, data.msg.text);
+    
+    // Broadcast to ALL clients including sender
+    io.emit('msg', {
+      server: data.server || 'home',
+      channel: data.channel || 'general',
+      msg: {
+        user: user.name,
+        text: data.msg.text,
+        time: data.msg.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    });
   });
 
-  // Friend request
-  socket.on('friendRequest', (targetName) => {
+  // ✅ DIRECT MESSAGE
+  socket.on('dm', (data) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+    
+    console.log(`DM from ${user.name} to ${data.to}`);
+    
+    // Find recipient by name
+    let recipientId = null;
+    users.forEach((u, id) => {
+      if (u.name === data.to) recipientId = id;
+    });
+    
+    if (recipientId) {
+      // Send to recipient
+      io.to(recipientId).emit('dm', {
+        from: user.name,
+        to: data.to,
+        msg: data.msg
+      });
+      // Send back to sender
+      socket.emit('dm', {
+        from: user.name,
+        to: data.to,
+        msg: data.msg
+      });
+    }
+  });
+
+  // ✅ FRIEND REQUEST
+  socket.on('friendRequest', (data) => {
     const requester = users.get(socket.id);
     if (!requester) return;
-    for (const [id, u] of users) {
-      if (u.name === targetName) {
-        friendRequests.set(socket.id, id);
-        u.socket.emit('friendRequest', { from: requester.name, fromId: socket.id });
-        socket.emit('msg', { msg: { user: 'System', text: `Friend request sent to ${targetName}`, time: '' } });
-        return;
+    
+    console.log(`Friend request from ${data.from} to ${data.to}`);
+    
+    // Find target user
+    let targetId = null;
+    users.forEach((u, id) => {
+      if (u.name === data.to) targetId = id;
+    });
+    
+    if (targetId) {
+      friendRequests.set(socket.id, targetId);
+      io.to(targetId).emit('friendRequest', {
+        from: data.from,
+        to: data.to
+      });
+    }
+  });
+
+  // ✅ FRIEND RESPONSE (accept/reject)
+  socket.on('friendResponse', (data) => {
+    const responder = users.get(socket.id);
+    if (!responder) return;
+    
+    console.log(`Friend response from ${data.from} to ${data.to}:`, data.accepted);
+    
+    // Find the requester
+    let requesterId = null;
+    users.forEach((u, id) => {
+      if (u.name === data.to) requesterId = id;
+    });
+    
+    if (requesterId) {
+      io.to(requesterId).emit('friendResponse', {
+        from: data.from,
+        to: data.to,
+        accepted: data.accepted
+      });
+      
+      if (data.accepted) {
+        friendRequests.delete(requesterId);
       }
     }
-    socket.emit('msg', { msg: { user: 'System', text: `User ${targetName} not found or offline`, time: '' } });
   });
 
-  // Accept friend
-  socket.on('acceptFriend', (requesterId) => {
-    const accepter = users.get(socket.id);
-    if (!accepter) return;
-    const requester = users.get(requesterId);
-    if (requester) {
-      io.to(requesterId).emit('friendAccepted', { name: accepter.name });
-      socket.emit('friendAccepted', { name: requester.name });
-    }
-    friendRequests.delete(requesterId);
-  });
-
-  // Decline friend
-  socket.on('declineFriend', (requesterId) => {
-    friendRequests.delete(requesterId);
-    io.to(requesterId).emit('friendDeclined', {});
-  });
-
+  // ✅ DISCONNECT
   socket.on('disconnect', () => {
     const user = users.get(socket.id);
-    if (user) console.log(`${user.name} disconnected`);
+    if (user) {
+      console.log(`${user.name} disconnected`);
+    }
     users.delete(socket.id);
+    
+    // Clean up friend requests
     friendRequests.forEach((v, k) => {
       if (v === socket.id || k === socket.id) friendRequests.delete(k);
     });
+    
+    // Broadcast updated user list
+    const userList = {};
+    users.forEach((user, id) => {
+      userList[user.name] = user.status;
+    });
+    io.emit('users', userList);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`GHOSTCORD Server running on http://localhost:${PORT}`);
-  console.log(`Open in multiple tabs to chat!`);
+  console.log(`🚀 GHOSTCORD Server running on port ${PORT}`);
+  console.log(`📡 Ready for connections!`);
 });
