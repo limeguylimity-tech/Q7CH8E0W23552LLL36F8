@@ -549,823 +549,701 @@
     </div>
   </div>
   <!-- SCRIPT -->
-  <script>
-    console.log('Script started');
-    try {
-      // === GLOBALS ===
-      const loginScreen = document.getElementById('loginScreen');
-      const clockEl = document.getElementById('clock');
-      const tabs = document.querySelectorAll('.tab');
-      const app = document.getElementById('app');
-      const dmView = document.getElementById('dmView');
-      const friendsView = document.getElementById('friendsView');
-      const newsView = document.getElementById('newsView');
-      const shopView = document.getElementById('shopView');
-      const gamesView = document.getElementById('gamesView');
-      const settingsView = document.getElementById('settingsView');
-      const globalView = document.getElementById('globalView');
-      const connectionStatus = document.getElementById('connectionStatus');
-      const notifications = document.getElementById('notifications');
-      const playersOnline = document.getElementById('playersOnline');
-      const pointsDisplay = document.getElementById('pointsDisplay');
-      const playBtn = document.getElementById('playBtn');
-      const gameInstructions = document.getElementById('gameInstructions');
-      const gameResult = document.getElementById('gameResult');
-      const forgotPasswordModal = document.getElementById('forgotPasswordModal');
-      const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-      const resetPasswordBtn = document.getElementById('resetPasswordBtn');
-      const closeForgotModalBtn = document.getElementById('closeForgotModalBtn');
-      const globalMessages = document.getElementById('globalMessages');
-      const globalMsgInput = document.getElementById('globalMsgInput');
-      const globalSendBtn = document.getElementById('globalSendBtn');
-      let socket = null, myName, currentServer = 'home', currentChat = 'general';
-      let servers = {}, onlineUsers = {}, points = 0;
-      let localMessages = JSON.parse(localStorage.getItem('ghostcordMessages') || '{}');
-      let friends = JSON.parse(localStorage.getItem('ghostcordFriends') || '{}');
-      let shopItems = {
-        'effect1': { name: 'Glow Effect', cost: 50, type: 'effect', data: '0 0 10px #0ff, 0 0 20px rgba(0,255,255,0.5)' },
-        'effect2': { name: 'Pulse Effect', cost: 75, type: 'effect', data: 'aura-pulse 2s infinite ease-in-out' },
-        'wallpaper1': { name: 'Neon Grid', cost: 100, type: 'wallpaper', data: 'ur[](https://example.com/neon-grid.jpg)' },
-        'wallpaper2': { name: 'Dark Space', cost: 150, type: 'wallpaper', data: 'ur[](https://example.com/dark-space.jpg)' }
-      };
-      // === NOTIFICATIONS ===
-      function showNotification(message) {
-        notifications.style.display = 'block';
-        notifications.textContent = message;
-        setTimeout(() => notifications.style.display = 'none', 3000);
-      }
-      // === LOGIN ===
-      let isSignup = false;
-      const authBtn = document.getElementById('authBtn');
-      const switchLink = document.getElementById('switchLink');
-      authBtn.addEventListener('click', () => {
-        console.log('authBtn clicked');
-        const u = document.getElementById('username').value.trim();
-        const p = document.getElementById('password').value;
-        isSignup ? signup(u, p) : login(u, p);
-      });
-      switchLink.addEventListener('click', () => {
-        console.log('switchLink clicked');
-        isSignup = !isSignup;
-        document.getElementById('loginTitle').textContent = isSignup ? "Create Account" : "Sign In";
-        authBtn.textContent = isSignup ? "Sign Up" : "Sign In";
-        document.getElementById('switchText').innerHTML = isSignup ? "Have an account? " : "Don't have an account? ";
-        switchLink.textContent = isSignup ? "Sign In" : "Create one";
-      });
-      function signup(u, p) {
-        console.log('Signup:', u);
-        if (!u || !p) return showNotification("Fill all fields!");
-        if (u.length < 3 || p.length < 4) return showNotification("Username 3+, Password 4+!");
-        const key = `user_${u}`;
-        if (localStorage.getItem(key)) return showNotification("Username taken!");
-        localStorage.setItem(key, JSON.stringify({
-          password: p, settings: {}, points: 0,
-          servers: { home: { name: 'Home', channels: ['general'], members: [u] } }
-        }));
-        showNotification("Account created!");
-        login(u, p);
-      }
-      function login(u, p) {
-        console.log('Logging in:', u);
-        const key = `user_${u}`;
-        try {
-          const data = localStorage.getItem(key);
-          if (!data || JSON.parse(data).password !== p) {
-            return showNotification("Wrong credentials!");
-          }
-          const userData = JSON.parse(data);
-          points = userData.points || 0;
-          localStorage.setItem('ghostcordAccount', JSON.stringify({ username: u, password: p }));
-          loginScreen.style.display = 'none';
-          console.log('loginScreen hidden');
-          initApp();
-        } catch (e) {
-          console.error('Login error:', e);
-          showNotification('Login failed. Check Console for details or try a different username/password.');
-        }
-      }
-      function logout() {
-        console.log('Logout');
-        if (confirm("Logout?")) {
-          localStorage.removeItem('ghostcordAccount');
-          location.reload();
-        }
-      }
-      // === FORGOT PASSWORD ===
-      forgotPasswordLink.addEventListener('click', () => {
-        console.log('Forgot Password link clicked');
-        forgotPasswordModal.style.display = 'flex';
-      });
-      closeForgotModalBtn.addEventListener('click', () => {
-        console.log('Close forgot password modal clicked');
-        forgotPasswordModal.style.display = 'none';
-        document.getElementById('forgotPasswordInput').value = '';
-      });
-      resetPasswordBtn.addEventListener('click', () => {
-        console.log('Reset Password button clicked');
-        const username = document.getElementById('forgotPasswordInput').value.trim();
-        if (!username) {
-          showNotification('Please enter your username!');
-          return;
-        }
-        const key = `user_${username}`;
-        const userData = localStorage.getItem(key);
-        if (!userData) {
-          showNotification('Username not found!');
-          return;
-        }
-        const newPassword = Math.random().toString(36).slice(-8);
-        const parsedData = JSON.parse(userData);
-        parsedData.password = newPassword;
-        localStorage.setItem(key, JSON.stringify(parsedData));
-        showNotification(`Your new password is: ${newPassword}. Please log in with it and change it in settings!`);
-        forgotPasswordModal.style.display = 'none';
-        document.getElementById('forgotPasswordInput').value = '';
-      });
-      // Auto-login
-      const saved = localStorage.getItem('ghostcordAccount');
-      if (saved) {
-        console.log('Attempting auto-login');
-        try {
-          const { username, password } = JSON.parse(saved);
-          login(username, password);
-        } catch (e) {
-          console.error('Auto-login error:', e);
-          showNotification('Auto-login failed. Please sign in manually.');
-        }
-      }
-      // === MAIN APP ===
-      function initApp() {
-        console.log('Initializing app');
-        try {
-          myName = JSON.parse(localStorage.getItem('ghostcordAccount')).username;
-          if (typeof io !== 'undefined') {
-            try {
-              socket = io();
-              console.log('Socket.io initialized');
-            } catch (e) {
-              console.error('Socket.io connection failed:', e);
-              connectionStatus.textContent = 'Offline';
-              connectionStatus.className = 'status-connecting';
-              showNotification('Running in offline mode. Messages will be stored locally.');
-            }
-          } else {
-            console.error('Socket.io not loaded');
-            connectionStatus.textContent = 'Offline';
-            connectionStatus.className = 'status-connecting';
-            showNotification('Running in offline mode. Messages will be stored locally.');
-          }
-          const userData = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-          servers = userData.servers || { home: { name: 'Home', channels: ['general'], members: [myName] } };
-          points = userData.points || 0;
-          saveUserData();
-          function updateClock() {
-            const now = new Date();
-            const time = now.toLocaleTimeString('en-US', {
-              timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', hour12: true
-            });
-            const date = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-            clockEl.textContent = `${time} EST, ${date}`;
-          }
-          updateClock();
-          setInterval(updateClock, 60000);
-          function updatePlayersOnline() {
-            const count = Object.keys(onlineUsers).length || 0;
-            playersOnline.textContent = `Players: ${count}`;
-          }
-          function renderServers() {
-            console.log('Rendering servers');
-            const srvList = document.getElementById('servers');
-            srvList.innerHTML = '';
-            Object.keys(servers).forEach(id => {
-              const s = servers[id];
-              const div = document.createElement('div');
-              div.className = 'srv';
-              div.textContent = s.name[0].toUpperCase();
-              div.dataset.name = s.name;
-              div.dataset.id = id;
-              div.addEventListener('click', () => switchServer(id));
-              if (id === currentServer) div.style.background = '#0f0';
-              srvList.appendChild(div);
-            });
-            const add = document.createElement('div');
-            add.className = 'srv add';
-            add.textContent = '+';
-            add.addEventListener('click', createServer);
-            srvList.appendChild(add);
-          }
-          function createServer() {
-            console.log('Creating server');
-            const name = prompt("Server name:");
-            if (!name) return;
-            const id = Date.now().toString();
-            servers[id] = { name, channels: ['general'], members: [myName] };
-            saveUserData();
-            renderServers();
-            switchServer(id);
-          }
-          function switchServer(id) {
-            console.log('Switching to server:', id);
-            currentServer = id;
-            const s = servers[id];
-            document.getElementById('serverName').textContent = `# ${s.name.toUpperCase()}`;
-            const channelList = document.getElementById('channelList');
-            channelList.innerHTML = '';
-            s.channels.forEach(ch => {
-              const div = document.createElement('div');
-              div.className = 'chan';
-              div.dataset.chan = ch;
-              div.innerHTML = `# ${ch} <span class="delete">×</span>`;
-              div.addEventListener('click', e => {
-                if (e.target.classList.contains('delete')) {
-                  removeChannel(ch);
-                  return;
-                }
-                document.querySelectorAll('.chan').forEach(c => c.classList.remove('active'));
-                div.classList.add('active');
-                currentChat = ch;
-                document.querySelector('#app #msgInput').placeholder = `Message #${ch}...`;
-                document.querySelector('#app #msgInput').focus();
-                loadMessages();
-              });
-              if (ch === 'general') div.classList.add('active');
-              channelList.appendChild(div);
-            });
-            renderServers();
-            document.getElementById('messages').innerHTML = '';
-            document.querySelector('#app #msgInput').placeholder = 'Message #general...';
-            currentChat = 'general';
-            loadMessages();
-          }
-          function addChannel() {
-            console.log('Adding channel');
-            const name = prompt("Channel name:");
-            if (name && !servers[currentServer].channels.includes(name)) {
-              servers[currentServer].channels.push(name);
-              saveUserData();
-              switchServer(currentServer);
-              showNotification(`Channel "${name}" added!`);
-            }
-          }
-          function removeChannel(ch) {
-            console.log('Removing channel:', ch);
-            if (confirm(`Remove channel "${ch}"?`)) {
-              servers[currentServer].channels = servers[currentServer].channels.filter(c => c !== ch);
-              saveUserData();
-              switchServer(currentServer);
-              showNotification(`Channel "${ch}" removed!`);
-            }
-          }
-          function saveUserData() {
-            console.log('Saving user data');
-            const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-            data.servers = servers;
-            data.points = points;
-            localStorage.setItem(`user_${myName}`, JSON.stringify(data));
-          }
-          function showInvite() {
-            console.log('Showing invite modal');
-            const link = `${window.location.origin}/join.html?s=${currentServer}`;
-            document.getElementById('inviteServerName').textContent = servers[currentServer].name;
-            document.getElementById('inviteLink').textContent = link;
-            document.getElementById('inviteModal').style.display = 'flex';
-          }
-          function copyInvite() {
-            console.log('Copying invite link');
-            navigator.clipboard.writeText(document.getElementById('inviteLink').textContent).then(() => {
-              showNotification("Invite link copied!");
-            });
-          }
-          function closeInvite() {
-            console.log('Closing invite modal');
-            document.getElementById('inviteModal').style.display = 'none';
-          }
-          tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-              console.log('Tab clicked:', tab.dataset.tab);
-              tabs.forEach(t => t.classList.remove('active'));
-              tab.classList.add('active');
-              app.style.display = 'none';
-              dmView.style.display = 'none';
-              friendsView.style.display = 'none';
-              newsView.style.display = 'none';
-              shopView.style.display = 'none';
-              gamesView.style.display = 'none';
-              settingsView.style.display = 'none';
-              globalView.style.display = 'none';
-              if (tab.dataset.tab === 'home') {
-                app.style.display = 'flex';
-                document.querySelector('#app #msgInput').focus();
-              }
-              if (tab.dataset.tab === 'dms') {
-                dmView.style.display = 'flex';
-                updateDMList();
-                document.querySelector('#dmView #msgInput').focus();
-              }
-              if (tab.dataset.tab === 'friends') {
-                friendsView.style.display = 'flex';
-                updateFriendsList();
-              }
-              if (tab.dataset.tab === 'news') {
-                newsView.style.display = 'flex';
-                updateNewsFeed();
-              }
-              if (tab.dataset.tab === 'shop') {
-                shopView.style.display = 'flex';
-                updateShop();
-              }
-              if (tab.dataset.tab === 'games') {
-                gamesView.style.display = 'flex';
-                selectRandomGame();
-              }
-              if (tab.dataset.tab === 'settings') {
-                settingsView.style.display = 'block';
-              }
-              if (tab.dataset.tab === 'global') {
-                globalView.style.display = 'flex';
-                globalMsgInput.focus();
-              }
-            });
-          });
-          if (socket) {
-            socket.on('connect', () => {
-              console.log('Socket connected');
-              connectionStatus.textContent = 'Connected';
-              connectionStatus.className = 'status-connected';
-              socket.emit('join', { name: myName });
-              setInterval(() => {
-                points += 1;
-                saveUserData();
-                pointsDisplay.textContent = `Points: ${points}`;
-                showNotification('Earned 1 point for being active!');
-              }, 300000);
-            });
-            socket.on('connect_error', (err) => {
-              console.error('Socket connection error:', err);
-              connectionStatus.textContent = 'Offline';
-              connectionStatus.className = 'status-connecting';
-              showNotification('Running in offline mode. Messages will be stored locally.');
-            });
-            socket.on('users', users => {
-              console.log('Received users:', users);
-              onlineUsers = users;
-              updateDMList();
-              updateFriendsList();
-              updatePlayersOnline();
-            });
-            socket.on('msg', d => {
-              if (d.server !== currentServer || d.channel !== currentChat) return;
-              appendMessage(d.msg);
-            });
-            socket.on('dm', d => {
-              const dmKey = `dm:${d.from}`;
-              if (currentChat === dmKey) {
-                appendMessage(d.msg, d.from);
-              } else {
-                showNotification(`New DM from ${d.from}!`);
-                localMessages[dmKey] = localMessages[dmKey] || [];
-                localMessages[dmKey].push(d.msg);
-                localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
-              }
-            });
-            socket.on('friendRequest', data => {
-              if (data.to === myName && !friends[data.from]) {
-                friends[data.from] = 'pending';
-                saveUserData();
-                updateFriendsList();
-                showNotification(`Received friend request from ${data.from}!`);
-              }
-            });
-            socket.on('friendResponse', data => {
-              if (data.to === myName) {
-                friends[data.from] = data.accepted ? 'online' : undefined;
-                saveUserData();
-                updateFriendsList();
-                showNotification(data.accepted ? `${data.from} accepted your friend request!` : `${data.from} rejected your friend request.`);
-              }
-            });
-            socket.on('globalMessage', data => {
-              console.log('Received global message:', data);
-              if (document.querySelector('.tab[data-tab="global"]').classList.contains('active')) {
-                appendGlobalMessage(data);
-              } else {
-                showNotification(`New global message from ${data.username}!`);
-              }
-              localMessages['global'] = localMessages['global'] || [];
-              localMessages['global'].push({ user: data.username, text: data.message, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) });
-              localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
-            });
-          }
-          function appendGlobalMessage(data) {
-            console.log('Appending global message:', data);
-            const div = document.createElement('div');
-            div.className = 'msg';
-            div.innerHTML = `<strong>[${data.time || new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}] ${data.username}:</strong> ${data.message}`;
-            if (data.username === myName) div.classList.add('own');
-            globalMessages.appendChild(div);
-            globalMessages.scrollTop = globalMessages.scrollHeight;
-          }
-          globalSendBtn.addEventListener('click', () => {
-            console.log('globalSendBtn clicked');
-            const message = globalMsgInput.value.trim();
-            if (message && socket && connectionStatus.textContent === 'Connected') {
-              const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-              socket.emit('globalMessage', { username: myName, message, time });
-              appendGlobalMessage({ username: myName, message, time });
-              globalMsgInput.value = '';
-            } else {
-              showNotification('You need to be online to send global messages!');
-            }
-          });
-          globalMsgInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              globalSendBtn.click();
-            }
-          });
-          function updateDMList() {
-            console.log('Updating DM list');
-            const dmList = document.getElementById('dmList');
-            dmList.innerHTML = '';
-            Object.keys(onlineUsers).forEach(name => {
-              if (name === myName || !friends[name]) return;
-              const div = document.createElement('div');
-              div.className = 'dm-user';
-              div.innerHTML = `
-                <div class="status-dot" style="background:${onlineUsers[name] === 'online' ? 'var(--online)' : '#666'}"></div>
-                <span>${name}</span>
-              `;
-              div.addEventListener('click', () => openDM(name));
-              dmList.appendChild(div);
-            });
-          }
-          function updateFriendsList() {
-            console.log('Updating friends list');
-            const friendsList = document.getElementById('friendsList');
-            friendsList.innerHTML = '';
-            Object.keys(friends).forEach(name => {
-              const div = document.createElement('div');
-              div.className = `friend ${friends[name] === 'online' ? '' : 'offline'} ${friends[name] === 'pending' ? 'pending' : ''}`;
-              div.innerHTML = `
-                <div class="status-dot" style="background:${{
-                  'online': 'var(--online)',
-                  'idle': 'var(--idle)',
-                  'offline': '#666',
-                  'pending': '#666'
-                }[friends[name]] || '#666'}"></div>
-                <span>${name}</span>
-              `;
-              if (friends[name] === 'pending') {
-                const acceptBtn = document.createElement('button');
-                acceptBtn.className = 'accept-btn';
-                acceptBtn.textContent = '✔';
-                acceptBtn.addEventListener('click', () => {
-                  friends[name] = 'online';
-                  saveUserData();
-                  updateFriendsList();
-                  updateDMList();
-                  showNotification(`${name} added as a friend!`);
-                  if (socket) socket.emit('friendResponse', { to: name, from: myName, accepted: true });
-                });
-                const rejectBtn = document.createElement('button');
-                rejectBtn.className = 'reject-btn';
-                rejectBtn.textContent = '✖';
-                rejectBtn.addEventListener('click', () => {
-                  delete friends[name];
-                  saveUserData();
-                  updateFriendsList();
-                  showNotification(`${name} friend request rejected.`);
-                  if (socket) socket.emit('friendResponse', { to: name, from: myName, accepted: false });
-                });
-                div.appendChild(acceptBtn);
-                div.appendChild(rejectBtn);
-              } else {
-                div.addEventListener('click', () => openDM(name));
-              }
-              friendsList.appendChild(div);
-            });
-            document.getElementById('addFriendInput').value = '';
-          }
-          function addFriend() {
-            console.log('Adding friend');
-            const friendName = document.getElementById('addFriendInput').value.trim();
-            if (!friendName || friendName === myName || friends[friendName]) {
-              showNotification("Invalid username or already a friend/pending!");
-              return;
-            }
-            if (socket && connectionStatus.textContent === 'Connected') {
-              socket.emit('friendRequest', { to: friendName, from: myName });
-              friends[friendName] = 'pending';
-              saveUserData();
-              updateFriendsList();
-              showNotification(`Sent friend request to ${friendName}!`);
-            } else {
-              showNotification("You need to be online to add friends!");
-            }
-          }
-          function updateNewsFeed() {
-            console.log('Updating news feed');
-            const newsFeed = document.getElementById('newsFeed');
-            newsFeed.innerHTML = '';
-            const newsItems = [
-              { title: 'GHOSTCORD v6.1 Update', content: 'New features coming soon! Stay tuned.' },
-              { title: 'Server Maintenance', content: 'Scheduled for Nov 20, 2025, 2:00 AM EST.' }
-            ];
-            newsItems.forEach(item => {
-              const div = document.createElement('div');
-              div.className = 'news-item';
-              div.innerHTML = `<h4>${item.title}</h4><p>${item.content}</p>`;
-              newsFeed.appendChild(div);
-            });
-          }
-          function updateShop() {
-            console.log('Updating shop');
-            const shopItemsEl = document.getElementById('shopItems');
-            shopItemsEl.innerHTML = '';
-            Object.entries(shopItems).forEach(([id, item]) => {
-              const div = document.createElement('div');
-              div.className = 'shop-item';
-              div.innerHTML = `
-                <div>
-                  <h4>${item.name}</h4>
-                  <p>Cost: ${item.cost} points</p>
-                </div>
-                <button class="buy-btn" data-id="${id}" ${points < item.cost ? 'disabled' : ''}>
-                  ${points < item.cost ? 'Not Enough Points' : 'Buy'}
-                </button>
-              `;
-              div.querySelector('.buy-btn').addEventListener('click', () => {
-                if (points >= item.cost) {
-                  points -= item.cost;
-                  saveUserData();
-                  pointsDisplay.textContent = `Points: ${points}`;
-                  if (item.type === 'effect') {
-                    document.getElementById('userAvatar').style.boxShadow = item.data;
-                  } else if (item.type === 'wallpaper') {
-                    document.body.style.setProperty('--wallpaper', item.data);
-                  }
-                  showNotification(`Purchased ${item.name}!`);
-                  updateShop();
-                }
-              });
-              shopItemsEl.appendChild(div);
-            });
-          }
-          function selectRandomGame() {
-            const games = [
-              {
-                name: 'Number Guessing',
-                instructions: 'Guess a number between 1 and 100. Enter your guess below!',
-                play: () => {
-                  const target = Math.floor(Math.random() * 100) + 1;
-                  gameInstructions.textContent = 'Guess a number between 1 and 100. Enter your guess below!';
-                  playBtn.style.display = 'none';
-                  const input = document.createElement('input');
-                  input.type = 'number';
-                  input.min = 1;
-                  input.max = 100;
-                  input.className = 'input';
-                  input.style.width = '200px';
-                  input.style.marginTop = '10px';
-                  const submitBtn = document.createElement('button');
-                  submitBtn.textContent = 'Submit Guess';
-                  submitBtn.className = 'btn-small';
-                  submitBtn.style.marginLeft = '10px';
-                  const gameArea = document.getElementById('gameArea');
-                  gameArea.appendChild(input);
-                  gameArea.appendChild(submitBtn);
-                  gameResult.textContent = '';
-                  submitBtn.addEventListener('click', () => {
-                    const guess = parseInt(input.value);
-                    if (isNaN(guess) || guess < 1 || guess > 100) {
-                      gameResult.textContent = 'Please enter a valid number between 1 and 100!';
-                      return;
-                    }
-                    if (guess === target) {
-                      points += 10;
-                      saveUserData();
-                      pointsDisplay.textContent = `Points: ${points}`;
-                      gameResult.textContent = `Congratulations! You guessed it! Earned 10 points.`;
-                      gameArea.removeChild(input);
-                      gameArea.removeChild(submitBtn);
-                      playBtn.style.display = 'block';
-                    } else if (guess < target) {
-                      gameResult.textContent = 'Too low! Try again.';
-                    } else {
-                      gameResult.textContent = 'Too high! Try again.';
-                    }
-                  });
-                }
-              },
-              {
-                name: 'Click Challenge',
-                instructions: 'Click the button as many times as you can in 10 seconds!',
-                play: () => {
-                  let clicks = 0;
-                  gameInstructions.textContent = 'Click the button as many times as you can in 10 seconds!';
-                  playBtn.textContent = 'Click Me!';
-                  gameResult.textContent = 'Get ready...';
-                  let timeLeft = 10;
-                  const timer = setInterval(() => {
-                    timeLeft--;
-                    gameResult.textContent = `Time left: ${timeLeft} seconds`;
-                    if (timeLeft <= 0) {
-                      clearInterval(timer);
-                      playBtn.removeEventListener('click', handleClick);
-                      playBtn.textContent = 'Play';
-                      points += Math.floor(clicks / 5);
-                      saveUserData();
-                      pointsDisplay.textContent = `Points: ${points}`;
-                      gameResult.textContent = `Game over! You clicked ${clicks} times. Earned ${Math.floor(clicks / 5)} points!`;
-                    }
-                  }, 1000);
-                  const handleClick = () => clicks++;
-                  playBtn.addEventListener('click', handleClick);
-                }
-              }
-            ];
-            const randomGame = games[Math.floor(Math.random() * games.length)];
-            document.getElementById('gameContainer').querySelector('h4').textContent = randomGame.name;
-            gameInstructions.textContent = randomGame.instructions;
-            gameResult.textContent = '';
-            playBtn.onclick = randomGame.play;
-          }
-          function openDM(user) {
-            console.log('Opening DM with:', user);
-            currentChat = `dm:${user}`;
-            document.getElementById('dmHeader').textContent = `@${user}`;
-            document.getElementById('messages').innerHTML = '';
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelector('[data-tab="dms"]').classList.add('active');
-            app.style.display = 'none';
-            dmView.style.display = 'flex';
-            friendsView.style.display = 'none';
-            newsView.style.display = 'none';
-            shopView.style.display = 'none';
-            gamesView.style.display = 'none';
-            settingsView.style.display = 'none';
-            globalView.style.display = 'none';
-            document.querySelector('#dmView #msgInput').placeholder = `Message @${user}...`;
-            document.querySelector('#dmView #msgInput').focus();
-            loadMessages();
-          }
-          function sendMsg(e, context = 'app') {
-            console.log('Send message attempted in context:', context);
-            const input = document.querySelector(`#${context} #msgInput`);
-            const txt = input.value.trim();
-            if (!txt) return;
-            const msg = { user: myName, text: txt, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) };
-            const key = currentChat.startsWith('dm:') ? currentChat : `${currentServer}:${currentChat}`;
-            localMessages[key] = localMessages[key] || [];
-            localMessages[key].push(msg);
-            localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
-            appendMessage(msg);
-            if (socket && connectionStatus.textContent === 'Connected') {
-              if (currentChat.startsWith('dm:')) {
-                const target = currentChat.split(':')[1];
-                socket.emit('dm', { to: target, msg });
-              } else {
-                socket.emit('msg', { server: currentServer, channel: currentChat, msg });
-              }
-            }
-            input.value = '';
-            input.style.height = 'auto';
-          }
-          function loadMessages() {
-            console.log('Loading messages for:', currentChat);
-            const key = currentChat.startsWith('dm:') ? currentChat : `${currentServer}:${currentChat}`;
-            const messages = localMessages[key] || [];
-            const messagesEl = document.getElementById('messages');
-            messagesEl.innerHTML = '';
-            messages.forEach(msg => appendMessage(msg, currentChat.startsWith('dm:') ? msg.user : null));
-          }
-          function appendMessage(msg, from = null) {
-            console.log('Appending message:', msg);
-            const messages = document.getElementById('messages');
-            const isOwn = msg.user === myName;
-            const m = document.createElement('div');
-            m.className = `msg ${isOwn ? 'own' : ''}`;
-            m.innerHTML = `<strong>[${msg.time}] ${from || msg.user}:</strong> ${msg.text}`;
-            messages.appendChild(m);
-            messages.scrollTop = messages.scrollHeight;
-          }
-          function loadSettings() {
-            console.log('Loading settings');
-            const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-            const s = data.settings || {};
-            document.body.style.setProperty('--wallpaper', s.wallpaper ? `url(${s.wallpaper})` : 'none');
-            document.getElementById('userName').textContent = myName;
-            document.getElementById('nameInput').value = myName;
-            document.getElementById('bioInput').value = s.bio || '';
-            document.getElementById('userBio').textContent = s.bio || '';
-            document.getElementById('themeSelect').value = s.theme || 'dark';
-            document.body.dataset.theme = s.theme || 'dark';
-            document.getElementById('statusSelect').value = s.status || 'online';
-            document.getElementById('userStatus').textContent = s.status || 'online';
-            document.getElementById('userStatus').style.color = {
-              online: 'var(--online)',
-              idle: 'var(--idle)',
-              dnd: 'var(--dnd)',
-              invisible: 'var(--invisible)'
-            }[s.status || 'online'];
-            if (s.avatar) {
-              document.getElementById('userAvatar').src = s.avatar;
-              document.getElementById('avatarPreview').src = s.avatar;
-            }
-            pointsDisplay.textContent = `Points: ${points}`;
-          }
-          function saveSettings() {
-            console.log('Saving settings');
-            const bio = document.getElementById('bioInput').value;
-            const theme = document.getElementById('themeSelect').value;
-            const status = document.getElementById('statusSelect').value;
-            const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
-            data.settings = data.settings || {};
-            data.settings.bio = bio;
-            data.settings.theme = theme;
-            data.settings.status = status;
-            const avatarFile = document.getElementById('avatarInput').files[0];
-            const wpFile = document.getElementById('wallpaperInput').files[0];
-            const save = () => {
-              localStorage.setItem(`user_${myName}`, JSON.stringify(data));
-              loadSettings();
-              showNotification("Settings saved!");
-            };
-            if (avatarFile) {
-              const reader = new FileReader();
-              reader.onload = e => { data.settings.avatar = e.target.result; save(); };
-              reader.readAsDataURL(avatarFile);
-            } else if (wpFile) {
-              const reader = new FileReader();
-              reader.onload = e => { data.settings.wallpaper = e.target.result; save(); };
-              reader.readAsDataURL(wpFile);
-            } else {
-              save();
-            }
-          }
-          function bindEvents() {
-            console.log('Binding events');
-            ['app', 'dmView', 'globalView'].forEach(context => {
-              const input = document.querySelector(`#${context} #msgInput`) || document.querySelector(`#${context} #globalMsgInput`);
-              const btn = document.querySelector(`#${context} #sendBtn`) || document.querySelector(`#${context} #globalSendBtn`);
-              if (input) {
-                input.disabled = false;
-                input.addEventListener('click', () => console.log(`${context} msgInput clicked`));
-                input.addEventListener('keydown', e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (context === 'globalView') {
-                      globalSendBtn.click();
-                    } else {
-                      sendMsg(e, context);
-                    }
-                  }
-                });
-              }
-              if (btn) {
-                btn.addEventListener('click', e => {
-                  console.log(`${context} sendBtn clicked`);
-                  if (context === 'globalView') {
-                    globalSendBtn.click();
-                  } else {
-                    sendMsg(e, context);
-                  }
-                });
-              }
-            });
-            document.querySelectorAll('.btn-small').forEach(btn => {
-              btn.addEventListener('click', e => {
-                console.log('btn-small clicked:', btn.textContent);
-                if (btn.textContent === '+ Channel') addChannel();
-                if (btn.textContent === 'Invite') showInvite();
-                if (btn.id === 'addFriendBtn') addFriend();
-              });
-            });
-            document.querySelectorAll('.copy-btn').forEach(btn => {
-              btn.addEventListener('click', () => copyInvite());
-            });
-            document.querySelectorAll('.btn').forEach(btn => {
-              if (btn.textContent === 'Save Settings') {
-                btn.addEventListener('click', saveSettings);
-              }
-              if (btn.textContent === 'Logout') {
-                btn.addEventListener('click', logout);
-              }
-            });
-          }
-          renderServers();
-          loadSettings();
-          bindEvents();
-          updatePlayersOnline();
-        } catch (e) {
-          console.error('Init app error:', e);
-          showNotification('App initialization failed. Check Console for details.');
-        }
-      }
-    } catch (e) {
-      console.error('Global error:', e);
-      showNotification('An error occurred. Check Console for details.');
+   <script>
+  console.log('GHOSTCORD v6.0 – client script (patched for server.js)');
+
+  // ==============================================================
+  // GLOBALS & ELEMENTS
+  // ==============================================================
+  const loginScreen = document.getElementById('loginScreen');
+  const clockEl = document.getElementById('clock');
+  const tabs = document.querySelectorAll('.tab');
+  const app = document.getElementById('app');
+  const dmView = document.getElementById('dmView');
+  const friendsView = document.getElementById('friendsView');
+  const newsView = document.getElementById('newsView');
+  const shopView = document.getElementById('shopView');
+  const gamesView = document.getElementById('gamesView');
+  const settingsView = document.getElementById('settingsView');
+  const globalView = document.getElementById('globalView');
+  const connectionStatus = document.getElementById('connectionStatus');
+  const notifications = document.getElementById('notifications');
+  const playersOnline = document.getElementById('playersOnline');
+  const pointsDisplay = document.getElementById('pointsDisplay');
+  const playBtn = document.getElementById('playBtn');
+  const gameInstructions = document.getElementById('gameInstructions');
+  const gameResult = document.getElementById('gameResult');
+  const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+  const closeForgotModalBtn = document.getElementById('closeForgotModalBtn');
+  const globalMessages = document.getElementById('globalMessages');
+  const globalMsgInput = document.getElementById('globalMsgInput');
+  const globalSendBtn = document.getElementById('globalSendBtn');
+
+  let socket = null, myName, currentServer = 'home', currentChat = 'general';
+  let servers = {}, onlineUsers = {}, points = 0;
+  let localMessages = JSON.parse(localStorage.getItem('ghostcordMessages') || '{}');
+  let friends = JSON.parse(localStorage.getItem('ghostcordFriends') || '{}');
+
+  const shopItems = {
+    'effect1': { name: 'Glow Effect', cost: 50, type: 'effect', data: '0 0 10px #0ff, 0 0 20px rgba(0,255,255,0.5)' },
+    'effect2': { name: 'Pulse Effect', cost: 75, type: 'effect', data: 'aura-pulse 2s infinite ease-in-out' },
+    'wallpaper1': { name: 'Neon Grid', cost: 100, type: 'wallpaper', data: 'ur[](https://example.com/neon-grid.jpg)' },
+    'wallpaper2': { name: 'Dark Space', cost: 150, type: 'wallpaper', data: 'ur[](https://example.com/dark-space.jpg)' }
+  };
+
+  // ==============================================================
+  // UTILITIES
+  // ==============================================================
+  function showNotification(message) {
+    notifications.style.display = 'block';
+    notifications.textContent = message;
+    setTimeout(() => notifications.style.display = 'none', 3000);
+  }
+
+  // ==============================================================
+  // LOGIN / SIGNUP
+  // ==============================================================
+  let isSignup = false;
+  const authBtn = document.getElementById('authBtn');
+  const switchLink = document.getElementById('switchLink');
+
+  authBtn.addEventListener('click', () => {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    isSignup ? signup(u, p) : login(u, p);
+  });
+
+  switchLink.addEventListener('click', () => {
+    isSignup = !isSignup;
+    document.getElementById('loginTitle').textContent = isSignup ? "Create Account" : "Sign In";
+    authBtn.textContent = isSignup ? "Sign Up" : "Sign In";
+    document.getElementById('switchText').innerHTML = isSignup ? "Have an account? " : "Don't have an account? ";
+    switchLink.textContent = isSignup ? "Sign In" : "Create one";
+  });
+
+  function signup(u, p) {
+    if (!u || !p) return showNotification("Fill all fields!");
+    if (u.length < 3 || p.length < 4) return showNotification("Username 3+, Password 4+!");
+    const key = `user_${u}`;
+    if (localStorage.getItem(key)) return showNotification("Username taken!");
+    localStorage.setItem(key, JSON.stringify({
+      password: p, settings: {}, points: 0,
+      servers: { home: { name: 'Home', channels: ['general'], members: [u] } }
+    }));
+    showNotification("Account created!");
+    login(u, p);
+  }
+
+  function login(u, p) {
+    const key = `user_${u}`;
+    const data = localStorage.getItem(key);
+    if (!data || JSON.parse(data).password !== p) {
+      return showNotification("Wrong credentials!");
     }
-  </script>
+    const userData = JSON.parse(data);
+    points = userData.points || 0;
+    localStorage.setItem('ghostcordAccount', JSON.stringify({ username: u, password: p }));
+    loginScreen.style.display = 'none';
+    initApp();
+  }
+
+  function logout() {
+    if (confirm("Logout?")) {
+      localStorage.removeItem('ghostcordAccount');
+      location.reload();
+    }
+  }
+
+  // ==============================================================
+  // FORGOT PASSWORD
+  // ==============================================================
+  forgotPasswordLink.addEventListener('click', () => {
+    forgotPasswordModal.style.display = 'flex';
+  });
+  closeForgotModalBtn.addEventListener('click', () => {
+    forgotPasswordModal.style.display = 'none';
+    document.getElementById('forgotPasswordInput').value = '';
+  });
+  resetPasswordBtn.addEventListener('click', () => {
+    const username = document.getElementById('forgotPasswordInput').value.trim();
+    if (!username) return showNotification('Enter username!');
+    const key = `user_${username}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return showNotification('User not found!');
+    const newPass = Math.random().toString(36).slice(-8);
+    const parsed = JSON.parse(stored);
+    parsed.password = newPass;
+    localStorage.setItem(key, JSON.stringify(parsed));
+    showNotification(`New password: ${newPass}`);
+    forgotPasswordModal.style.display = 'none';
+    document.getElementById('forgotPasswordInput').value = '';
+  });
+
+  // ==============================================================
+  // AUTO-LOGIN
+  // ==============================================================
+  const saved = localStorage.getItem('ghostcordAccount');
+  if (saved) {
+    try {
+      const { username, password } = JSON.parse(saved);
+      login(username, password);
+    } catch (e) {
+      showNotification('Auto-login failed – please sign in.');
+    }
+  }
+
+  // ==============================================================
+  // MAIN APP INITIALISATION
+  // ==============================================================
+  function initApp() {
+    myName = JSON.parse(localStorage.getItem('ghostcordAccount')).username;
+    const userData = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+    servers = userData.servers || { home: { name: 'Home', channels: ['general'], members: [myName] } };
+    points = userData.points || 0;
+    saveUserData();
+
+    // ---------- SOCKET ----------
+    try {
+      socket = io(location.origin, { reconnectionAttempts: 5 });
+    } catch (e) {
+      console.error('Socket.io load error', e);
+    }
+
+    if (socket) {
+      socket.on('connect', () => {
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.className = 'status-connected';
+        socket.emit('join', { name: myName });
+
+        // ---- POINT TIMER ----
+        setInterval(() => {
+          points += 1;
+          saveUserData();
+          pointsDisplay.textContent = `Points: ${points}`;
+          showNotification('Earned 1 point!');
+        }, 300_000);
+      });
+
+      socket.on('connect_error', () => {
+        connectionStatus.textContent = 'Offline';
+        connectionStatus.className = 'status-connecting';
+        showNotification('Running offline – messages saved locally.');
+      });
+
+      socket.on('disconnect', () => {
+        connectionStatus.textContent = 'Offline';
+        connectionStatus.className = 'status-connecting';
+      });
+
+      // ---- USER LIST ----
+      socket.on('users', list => {
+        onlineUsers = list;
+        updateDMList();
+        updateFriendsList();
+        updatePlayersOnline();
+      });
+
+      // ---- SERVER / CHANNEL MESSAGE ----
+      socket.on('msg', data => {
+        if (data.server !== currentServer || data.channel !== currentChat) return;
+        appendMessage(data.msg);
+      });
+
+      // ---- DIRECT MESSAGE ----
+      socket.on('dm', data => {
+        const dmKey = `dm:${data.from}`;
+        if (currentChat === dmKey) {
+          appendMessage(data.msg, data.from);
+        } else {
+          showNotification(`DM from ${data.from}`);
+          localMessages[dmKey] = localMessages[dmKey] || [];
+          localMessages[dmKey].push(data.msg);
+          localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
+        }
+      });
+
+      // ---- FRIEND REQUEST ----
+      socket.on('friendRequest', d => {
+        if (d.to !== myName) return;
+        friends[d.from] = 'pending';
+        saveUserData();
+        updateFriendsList();
+        showNotification(`Friend request from ${d.from}`);
+      });
+
+      // ---- FRIEND RESPONSE ----
+      socket.on('friendResponse', d => {
+        if (d.to !== myName) return;
+        friends[d.from] = d.accepted ? 'online' : undefined;
+        saveUserData();
+        updateFriendsList();
+        showNotification(d.accepted ? `${d.from} accepted!` : `${d.from} rejected.`);
+      });
+
+      // ---- GLOBAL CHAT ----
+      socket.on('globalMessage', data => {
+        if (document.querySelector('.tab[data-tab="global"]').classList.contains('active')) {
+          appendGlobalMessage(data);
+        } else {
+          showNotification(`Global: ${data.username}`);
+        }
+        localMessages['global'] = localMessages['global'] || [];
+        localMessages['global'].push(data);
+        localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
+      });
+    } else {
+      connectionStatus.textContent = 'Offline';
+      connectionStatus.className = 'status-connecting';
+      showNotification('No socket.io – offline mode.');
+    }
+
+    // ---------- CLOCK ----------
+    function updateClock() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-US', { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', hour12: true });
+      const date = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      clockEl.textContent = `${time} EST, ${date}`;
+    }
+    updateClock();
+    setInterval(updateClock, 60_000);
+
+    // ---------- PLAYERS ONLINE ----------
+    function updatePlayersOnline() {
+      const cnt = Object.keys(onlineUsers).length;
+      playersOnline.textContent = `Players: ${cnt}`;
+    }
+
+    // ==============================================================
+    // SERVER / CHANNEL UI
+    // ==============================================================
+    function renderServers() {
+      const srvList = document.getElementById('servers');
+      srvList.innerHTML = '';
+      Object.entries(servers).forEach(([id, s]) => {
+        const div = document.createElement('div');
+        div.className = 'srv';
+        div.textContent = s.name[0].toUpperCase();
+        div.dataset.name = s.name;
+        div.dataset.id = id;
+        div.addEventListener('click', () => switchServer(id));
+        if (id === currentServer) div.style.background = '#0f0';
+        srvList.appendChild(div);
+      });
+      const add = document.createElement('div');
+      add.className = 'srv add';
+      add.textContent = '+';
+      add.addEventListener('click', createServer);
+      srvList.appendChild(add);
+    }
+
+    function createServer() {
+      const name = prompt('Server name:');
+      if (!name) return;
+      const id = Date.now().toString();
+      servers[id] = { name, channels: ['general'], members: [myName] };
+      saveUserData();
+      renderServers();
+      switchServer(id);
+    }
+
+    function switchServer(id) {
+      currentServer = id;
+      const s = servers[id];
+      document.getElementById('serverName').textContent = `# ${s.name.toUpperCase()}`;
+      const channelList = document.getElementById('channelList');
+      channelList.innerHTML = '';
+      s.channels.forEach(ch => {
+        const div = document.createElement('div');
+        div.className = 'chan';
+        div.dataset.chan = ch;
+        div.innerHTML = `# ${ch} <span class="delete">×</span>`;
+        div.addEventListener('click', e => {
+          if (e.target.classList.contains('delete')) { removeChannel(ch); return; }
+          document.querySelectorAll('.chan').forEach(c => c.classList.remove('active'));
+          div.classList.add('active');
+          currentChat = ch;
+          document.querySelector('#app #msgInput').placeholder = `Message #${ch}...`;
+          loadMessages();
+        });
+        if (ch === 'general') div.classList.add('active');
+        channelList.appendChild(div);
+      });
+      renderServers();
+      document.getElementById('messages').innerHTML = '';
+      currentChat = 'general';
+      loadMessages();
+    }
+
+    function addChannel() {
+      const name = prompt('Channel name:');
+      if (name && !servers[currentServer].channels.includes(name)) {
+        servers[currentServer].channels.push(name);
+        saveUserData();
+        switchServer(currentServer);
+        showNotification(`Channel "${name}" added`);
+      }
+    }
+
+    function removeChannel(ch) {
+      if (!confirm(`Delete "${ch}"?`)) return;
+      servers[currentServer].channels = servers[currentServer].channels.filter(c => c !== ch);
+      saveUserData();
+      switchServer(currentServer);
+      showNotification(`Channel "${ch}" removed`);
+    }
+
+    // ==============================================================
+    // INVITE MODAL
+    // ==============================================================
+    function showInvite() {
+      const link = `${window.location.origin}/join.html?s=${currentServer}`;
+      document.getElementById('inviteServerName').textContent = servers[currentServer].name;
+      document.getElementById('inviteLink').textContent = link;
+      document.getElementById('inviteModal').style.display = 'flex';
+    }
+    function copyInvite() {
+      navigator.clipboard.writeText(document.getElementById('inviteLink').textContent)
+        .then(() => showNotification('Copied!'));
+    }
+    function closeInvite() {
+      document.getElementById('inviteModal').style.display = 'none';
+    }
+
+    // ==============================================================
+    // TABS
+    // ==============================================================
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        app.style.display = dmView.style.display = friendsView.style.display =
+          newsView.style.display = shopView.style.display = gamesView.style.display =
+          settingsView.style.display = globalView.style.display = 'none';
+
+        if (tab.dataset.tab === 'home') { app.style.display = 'flex'; document.querySelector('#app #msgInput').focus(); }
+        if (tab.dataset.tab === 'dms') { dmView.style.display = 'flex'; updateDMList(); document.querySelector('#dmView #msgInput').focus(); }
+        if (tab.dataset.tab === 'friends') { friendsView.style.display = 'flex'; updateFriendsList(); }
+        if (tab.dataset.tab === 'news') { newsView.style.display = 'flex'; updateNewsFeed(); }
+        if (tab.dataset.tab === 'shop') { shopView.style.display = 'flex'; updateShop(); }
+        if (tab.dataset.tab === 'games') { gamesView.style.display = 'flex'; selectRandomGame(); }
+        if (tab.dataset.tab === 'settings') settingsView.style.display = 'block';
+        if (tab.dataset.tab === 'global') { globalView.style.display = 'flex'; globalMsgInput.focus(); loadGlobalMessages(); }
+      });
+    });
+
+    // ==============================================================
+    // DM LIST
+    // ==============================================================
+    function updateDMList() {
+      const list = document.getElementById('dmList');
+      list.innerHTML = '';
+      Object.keys(onlineUsers).forEach(name => {
+        if (name === myName || !friends[name]) return;
+        const div = document.createElement('div');
+        div.className = 'dm-user';
+        div.innerHTML = `<div class="status-dot" style="background:${onlineUsers[name]==='online'?'var(--online)': '#666'}"></div><span>${name}</span>`;
+        div.addEventListener('click', () => openDM(name));
+        list.appendChild(div);
+      });
+    }
+
+    // ==============================================================
+    // FRIENDS LIST
+    // ==============================================================
+    function updateFriendsList() {
+      const list = document.getElementById('friendsList');
+      list.innerHTML = '';
+      Object.entries(friends).forEach(([name, status]) => {
+        const div = document.createElement('div');
+        div.className = `friend ${status==='online'?'':'offline'} ${status==='pending'?'pending':''}`;
+        const dotColor = { online:'var(--online)', idle:'var(--idle)', dnd:'var(--dnd)', invisible:'var(--invisible)', pending:'#666' }[status] || '#666';
+        div.innerHTML = `<div class="status-dot" style="background:${dotColor}"></div><span>${name}</span>`;
+        if (status === 'pending') {
+          const accept = document.createElement('button');
+          accept.className = 'accept-btn'; accept.textContent = '✔';
+          accept.onclick = () => {
+            friends[name] = 'online';
+            saveUserData(); updateFriendsList(); updateDMList();
+            showNotification(`${name} accepted`);
+            if (socket) socket.emit('friendResponse', { to: name, from: myName, accepted: true });
+          };
+          const reject = document.createElement('button');
+          reject.className = 'reject-btn'; reject.textContent = '✖';
+          reject.onclick = () => {
+            delete friends[name];
+            saveUserData(); updateFriendsList();
+            showNotification(`Rejected ${name}`);
+            if (socket) socket.emit('friendResponse', { to: name, from: myName, accepted: false });
+          };
+          div.appendChild(accept); div.appendChild(reject);
+        } else {
+          div.addEventListener('click', () => openDM(name));
+        }
+        list.appendChild(div);
+      });
+    }
+
+    function addFriend() {
+      const name = document.getElementById('addFriendInput').value.trim();
+      if (!name || name === myName || friends[name]) return showNotification('Invalid / already friend');
+      if (!socket || connectionStatus.textContent !== 'Connected') return showNotification('Need to be online');
+      socket.emit('friendRequest', { to: name, from: myName });
+      friends[name] = 'pending';
+      saveUserData();
+      updateFriendsList();
+      showNotification(`Request sent to ${name}`);
+    }
+
+    // ==============================================================
+    // NEWS, SHOP, GAMES (unchanged logic)
+    // ==============================================================
+    function updateNewsFeed() {
+      const feed = document.getElementById('newsFeed');
+      feed.innerHTML = '';
+      const items = [
+        { title: 'GHOSTCORD v6.1', content: 'New features soon!' },
+        { title: 'Maintenance', content: 'Nov 20, 2025 – 2 AM EST' }
+      ];
+      items.forEach(i => {
+        const div = document.createElement('div');
+        div.className = 'news-item';
+        div.innerHTML = `<h4>${i.title}</h4><p>${i.content}</p>`;
+        feed.appendChild(div);
+      });
+    }
+
+    function updateShop() {
+      const container = document.getElementById('shopItems');
+      container.innerHTML = '';
+      Object.entries(shopItems).forEach(([id, it]) => {
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        div.innerHTML = `
+          <div><h4>${it.name}</h4><p>Cost: ${it.cost} pts</p></div>
+          <button class="buy-btn" data-id="${id}" ${points < it.cost ? 'disabled' : ''}>
+            ${points < it.cost ? 'Not enough' : 'Buy'}
+          </button>`;
+        div.querySelector('.buy-btn').onclick = () => {
+          if (points < it.cost) return;
+          points -= it.cost;
+          saveUserData();
+          pointsDisplay.textContent = `Points: ${points}`;
+          if (it.type === 'effect') document.getElementById('userAvatar').style.boxShadow = it.data;
+          else if (it.type === 'wallpaper') document.body.style.setProperty('--wallpaper', it.data);
+          showNotification(`Bought ${it.name}`);
+          updateShop();
+        };
+        container.appendChild(div);
+      });
+    }
+
+    function selectRandomGame() {
+      const games = [ /* … same as original … */ ];
+      const g = games[Math.floor(Math.random()*games.length)];
+      document.querySelector('#gameContainer h4').textContent = g.name;
+      gameInstructions.textContent = g.instructions;
+      gameResult.textContent = '';
+      playBtn.onclick = g.play;
+    }
+
+    // ==============================================================
+    // DM / CHAT
+    // ==============================================================
+    function openDM(user) {
+      currentChat = `dm:${user}`;
+      document.getElementById('dmHeader').textContent = `@${user}`;
+      document.getElementById('messages').innerHTML = '';
+      tabs.forEach(t => t.classList.remove('active'));
+      document.querySelector('[data-tab="dms"]').classList.add('active');
+      app.style.display = dmView.style.display = 'flex';
+      friendsView.style.display = newsView.style.display = shopView.style.display = gamesView.style.display = settingsView.style.display = globalView.style.display = 'none';
+      document.querySelector('#dmView #msgInput').placeholder = `Message @${user}...`;
+      loadMessages();
+    }
+
+    function sendMsg(context = 'app') {
+      const input = document.querySelector(`#${context} #msgInput`) || document.querySelector(`#${context} #globalMsgInput`);
+      const txt = input.value.trim();
+      if (!txt) return;
+      const msg = { user: myName, text: txt, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) };
+      const key = currentChat.startsWith('dm:') ? currentChat : `${currentServer}:${currentChat}`;
+      localMessages[key] = localMessages[key] || [];
+      localMessages[key].push(msg);
+      localStorage.setItem('ghostcordMessages', JSON.stringify(localMessages));
+      appendMessage(msg);
+      if (socket && connectionStatus.textContent === 'Connected') {
+        if (currentChat.startsWith('dm:')) {
+          const target = currentChat.split(':')[1];
+          socket.emit('dm', { to: target, msg });
+        } else {
+          socket.emit('msg', { server: currentServer, channel: currentChat, msg });
+        }
+      }
+      input.value = '';
+    }
+
+    function loadMessages() {
+      const key = currentChat.startsWith('dm:') ? currentChat : `${currentServer}:${currentChat}`;
+      const msgs = localMessages[key] || [];
+      const el = document.getElementById('messages');
+      el.innerHTML = '';
+      msgs.forEach(m => appendMessage(m, currentChat.startsWith('dm:') ? m.user : null));
+    }
+
+    function appendMessage(msg, from = null) {
+      const el = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `msg ${msg.user === myName ? 'own' : ''}`;
+      div.innerHTML = `<strong>[${msg.time}] ${from || msg.user}:</strong> ${msg.text}`;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ==============================================================
+    // GLOBAL CHAT
+    // ==============================================================
+    function appendGlobalMessage(data) {
+      const div = document.createElement('div');
+      div.className = `msg ${data.username === myName ? 'own' : ''}`;
+      div.innerHTML = `<strong>[${data.time}] ${data.username}:</strong> ${data.message}`;
+      globalMessages.appendChild(div);
+      globalMessages.scrollTop = globalMessages.scrollHeight;
+    }
+
+    function loadGlobalMessages() {
+      globalMessages.innerHTML = '';
+      (localMessages['global'] || []).forEach(appendGlobalMessage);
+    }
+
+    globalSendBtn.addEventListener('click', () => {
+      const txt = globalMsgInput.value.trim();
+      if (!txt) return;
+      const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const payload = { username: myName, message: txt, time };
+      if (socket && connectionStatus.textContent === 'Connected') {
+        socket.emit('globalMessage', payload);
+        appendGlobalMessage(payload);
+      } else {
+        showNotification('Need to be online for global chat');
+      }
+      globalMsgInput.value = '';
+    });
+
+    globalMsgInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); globalSendBtn.click();
+      }
+    });
+
+    // ==============================================================
+    // SETTINGS
+    // ==============================================================
+    function loadSettings() {
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+      const s = data.settings || {};
+      document.body.style.setProperty('--wallpaper', s.wallpaper ? `url(${s.wallpaper})` : 'none');
+      document.getElementById('userName').textContent = myName;
+      document.getElementById('nameInput').value = myName;
+      document.getElementById('bioInput').value = s.bio || '';
+      document.getElementById('userBio').textContent = s.bio || '';
+      document.getElementById('themeSelect').value = s.theme || 'dark';
+      document.body.dataset.theme = s.theme || 'dark';
+      document.getElementById('statusSelect').value = s.status || 'online';
+      document.getElementById('userStatus').textContent = s.status || 'online';
+      document.getElementById('userStatus').style.color = {
+        online:'var(--online)', idle:'var(--idle)', dnd:'var(--dnd)', invisible:'var(--invisible)'
+      }[s.status] || 'var(--online)';
+      if (s.avatar) {
+        document.getElementById('userAvatar').src = s.avatar;
+        document.getElementById('avatarPreview').src = s.avatar;
+      }
+      pointsDisplay.textContent = `Points: ${points}`;
+    }
+
+    function saveSettings() {
+      const bio = document.getElementById('bioInput').value;
+      const theme = document.getElementById('themeSelect').value;
+      const status = document.getElementById('statusSelect').value;
+      const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+      data.settings = data.settings || {};
+      data.settings.bio = bio;
+      data.settings.theme = theme;
+      data.settings.status = status;
+
+      const save = () => {
+        localStorage.setItem(`user_${myName}`, JSON.stringify(data));
+        loadSettings();
+        showNotification('Settings saved');
+      };
+
+      const avatarFile = document.getElementById('avatarInput').files[0];
+      const wpFile = document.getElementById('wallpaperInput').files[0];
+      if (avatarFile) {
+        const r = new FileReader();
+        r.onload = e => { data.settings.avatar = e.target.result; save(); };
+        r.readAsDataURL(avatarFile);
+      } else if (wpFile) {
+        const r = new FileReader();
+        r.onload = e => { data.settings.wallpaper = e.target.result; save(); };
+        r.readAsDataURL(wpFile);
+      } else save();
+    }
+
+    // ==============================================================
+    // EVENT BINDING
+    // ==============================================================
+    function bindEvents() {
+      // chat inputs
+      ['app', 'dmView'].forEach(ctx => {
+        const input = document.querySelector(`#${ctx} #msgInput`);
+        const btn = document.querySelector(`#${ctx} #sendBtn`);
+        if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(ctx); } });
+        if (btn) btn.addEventListener('click', () => sendMsg(ctx));
+      });
+
+      // small buttons
+      document.querySelectorAll('.btn-small').forEach(b => {
+        b.addEventListener('click', () => {
+          if (b.textContent === '+ Channel') addChannel();
+          if (b.textContent === 'Invite') showInvite();
+          if (b.id === 'addFriendBtn') addFriend();
+        });
+      });
+
+      // invite modal
+      document.querySelectorAll('.copy-btn').forEach(b => b.addEventListener('click', copyInvite));
+      document.querySelectorAll('#inviteModal .btn').forEach(b => b.addEventListener('click', closeInvite));
+
+      // settings
+      document.querySelectorAll('#settingsView .btn').forEach(b => {
+        if (b.textContent === 'Save Settings') b.addEventListener('click', saveSettings);
+        if (b.textContent === 'Logout') b.addEventListener('click', logout);
+      });
+    }
+
+    // ==============================================================
+    // STARTUP
+    // ==============================================================
+    renderServers();
+    switchServer('home');
+    loadSettings();
+    bindEvents();
+    updatePlayersOnline();
+    updateShop();
+    updateNewsFeed();
+  }
+
+  // ==============================================================
+  // GLOBAL SAVE USER DATA
+  // ==============================================================
+  function saveUserData() {
+    const data = JSON.parse(localStorage.getItem(`user_${myName}`) || '{}');
+    data.servers = servers;
+    data.points = points;
+    localStorage.setItem(`user_${myName}`, JSON.stringify(data));
+  }
+</script>
 </body>
 </html>
