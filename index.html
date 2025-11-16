@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GHOSTCORD v6.3</title>
+  <title>GHOSTCORD v6.4</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
@@ -44,7 +44,7 @@
     .chan:hover,.chan.active{background:var(--accent);color:var(--c1);}
     .chan .delete{color:#f55;font-size:10px;cursor:pointer;opacity:0;transition:var(--transition);}
     .chan:hover .delete{opacity:1;}
-    #chatArea{flex:1;display:flex;flex-direction:column;}
+    #chatArea{flex:1;display:flex;flex-direction:column;position:relative;}
     #messages{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
     .msg{max-width:70%;padding:12px 16px;background:var(--card);border-left:4px solid var(--c1);border-radius:var(--radius);align-self:flex-start;word-wrap:break-word;box-shadow:0 1px 3px rgba(0,0,0,.2);}
     .msg.own{align-self:flex-end;background:#1a1a1a;border-left:none;border-right:4px solid var(--c2);}
@@ -54,6 +54,8 @@
     #msgInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
     #sendBtn{background:var(--c1);color:#000;border:none;padding:0 24px;border-radius:12px;cursor:pointer;font-weight:bold;height:50px;min-width:80px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
     #sendBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
+    #clearBtn{position:absolute;bottom:16px;right:16px;background:#f55;color:#000;padding:8px 12px;border:none;border-radius:12px;cursor:pointer;font-weight:bold;font-size:12px;z-index:1003;display:none;box-shadow:0 0 10px #f55,0 0 20px rgba(255,85,85,.5);}
+    #clearBtn:hover{background:#f77;box-shadow:0 0 15px #f55,0 0 30px rgba(255,85,85,.7);}
     #dmView,#friendsView,#newsView,#shopView,#gamesView,#settingsView,#globalView{flex:1;display:none;flex-direction:column;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);}
     #dmHeader,#globalHeader{padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--c1);}
     #dmList,#friendsList,#newsFeed,#shopItems,#gameContainer{padding:20px;}
@@ -134,6 +136,7 @@
           <textarea id="msgInput" placeholder="Select a server..."></textarea>
           <button id="sendBtn" disabled>Send</button>
         </div>
+        <button id="clearBtn">Clear</button>
       </div>
     </div>
   </div>
@@ -146,16 +149,15 @@
       <textarea id="dmInput" placeholder="Select a DM..."></textarea>
       <button id="dmSendBtn" disabled>Send</button>
     </div>
+    <button id="clearBtn">Clear</button>
   </div>
 
-  <!-- Friends -->
+  <!-- Friends, News, Shop, Games, Global -->
   <div id="friendsView">
     <input id="addFriendInput" class="input" placeholder="Add friend...">
     <button id="addFriendBtn" class="btn-small">Add</button>
     <div id="friendsList"></div>
   </div>
-
-  <!-- News, Shop, Games, Global -->
   <div id="newsView"><div id="newsFeed"></div></div>
   <div id="shopView"><div id="pointsDisplay">Points: 0</div><div id="shopItems"></div></div>
   <div id="gamesView"><div id="gameContainer"><h4>Number Guessing</h4><p id="gameInstructions"></p><div id="gameArea"></div><button id="playBtn">Play</button><p id="gameResult"></p></div></div>
@@ -166,6 +168,7 @@
       <textarea id="globalMsgInput" placeholder="Say something..."></textarea>
       <button id="globalSendBtn">Send</button>
     </div>
+    <button id="clearBtn">Clear</button>
   </div>
 
   <!-- Settings -->
@@ -208,7 +211,8 @@
       connectionStatus: document.getElementById('connectionStatus'),
       globalMessages: document.getElementById('globalMessages'),
       globalMsgInput: document.getElementById('globalMsgInput'),
-      globalSendBtn: document.getElementById('globalSendBtn')
+      globalSendBtn: document.getElementById('globalSendBtn'),
+      clearBtn: document.getElementById('clearBtn')
     };
 
     function show(msg) { els.notifications.textContent = msg; els.notifications.style.display = 'block'; setTimeout(() => els.notifications.style.display = 'none', 3000); }
@@ -338,6 +342,7 @@
 
     function switchServer(id) {
       currentServer = id;
+      currentChannel = null;
       const s = servers[id];
       const cl = document.getElementById('channelList');
       cl.innerHTML = '';
@@ -352,16 +357,17 @@
           currentChannel = ch;
           document.getElementById('msgInput').placeholder = `Message #${ch}...`;
           document.getElementById('sendBtn').disabled = false;
+          els.clearBtn.style.display = 'block';
           loadMessages('messages');
         };
-        if (ch === 'general') div.classList.add('active');
+        if (ch === 'general') { div.classList.add('active'); currentChannel = 'general'; }
         cl.appendChild(div);
       });
       renderServers();
       document.getElementById('messages').innerHTML = '';
-      currentChannel = 'general';
       loadMessages('messages');
       document.getElementById('sendBtn').disabled = false;
+      els.clearBtn.style.display = 'block';
     }
 
     function removeChannel(ch) {
@@ -372,11 +378,13 @@
     }
 
     function loadMessages(containerId) {
-      const key = currentDM ? `dm:${currentDM}` : `${currentServer}:${currentChannel}`;
+      const key = currentDM ? `dm:${currentDM}` : currentChannel ? `${currentServer}:${currentChannel}` : null;
+      if (!key) return;
       const msgs = messages[key] || [];
       const el = document.getElementById(containerId);
       el.innerHTML = '';
       msgs.forEach(m => appendMessage(m, containerId));
+      scrollToBottom(el);
     }
 
     function appendMessage(msg, containerId) {
@@ -386,13 +394,26 @@
       m.className = `msg ${own ? 'own' : ''}`;
       m.innerHTML = `<strong>[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
       el.appendChild(m);
+      scrollToBottom(el);
+    }
+
+    function scrollToBottom(el) {
       el.scrollTop = el.scrollHeight;
+    }
+
+    function clearChat() {
+      const container = document.getElementById('messages');
+      if (!container) return;
+      const key = currentDM ? `dm:${currentDM}` : currentChannel ? `${currentServer}:${currentChannel}` : 'global';
+      if (messages[key]) messages[key] = [];
+      saveMessages();
+      container.innerHTML = '';
     }
 
     function sendChannel() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
-      if (!text || !currentServer) return;
+      if (!text || !currentServer || !currentChannel) return;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const msg = { user: myName, text, time };
       socket.emit('channelMessage', { server: currentServer, channel: currentChannel, msg });
@@ -462,6 +483,7 @@
       document.getElementById('dmInput').placeholder = `Message @${user}...`;
       document.getElementById('dmSendBtn').disabled = false;
       document.getElementById('dmSendBtn').onclick = sendDM;
+      els.clearBtn.style.display = 'block';
     }
 
     function showTab(tab) {
@@ -476,6 +498,8 @@
       document.getElementById('globalView').style.display = tab === 'global' ? 'flex' : 'none';
       document.getElementById('settingsView').style.display = tab === 'settings' ? 'block' : 'none';
 
+      els.clearBtn.style.display = (tab === 'home' && currentChannel) || tab === 'dms' || tab === 'global' ? 'block' : 'none';
+
       if (tab === 'global') { document.getElementById('globalMessages').innerHTML = ''; (messages.global || []).forEach(m => appendMessage(m, 'globalMessages')); }
       if (tab === 'news') updateNews();
       if (tab === 'shop') updateShop();
@@ -485,7 +509,7 @@
 
     function updateNews() {
       const feed = document.getElementById('newsFeed');
-      feed.innerHTML = '<div class="news-item"><h4>Welcome!</h4><p>GHOSTCORD v6.3 is live!</p></div>';
+      feed.innerHTML = '<div class="news-item"><h4>Welcome!</h4><p>GHOSTCORD v6.4 is live!</p></div>';
     }
 
     function updateShop() {
@@ -591,6 +615,7 @@
       document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
       document.getElementById('saveSettingsBtn').onclick = saveSettings;
       document.getElementById('logoutBtn').onclick = logout;
+      els.clearBtn.onclick = clearChat;
     }
 
     socket.on('acceptFriend', d => {
