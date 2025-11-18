@@ -547,6 +547,18 @@
       if (!text || !currentDM) return;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const msg = { user: myName, text, time };
+      
+      // Save to local messages immediately
+      const key = `dm:${currentDM}`;
+      messages[key] = messages[key] || [];
+      messages[key].push(msg);
+      saveMessages();
+      
+      // Display in your own chat
+      const dmMessages = document.getElementById('dmMessages');
+      appendMessage(msg, dmMessages);
+      
+      // Send to the other person
       socket.emit('dm', { to: currentDM, msg });
       input.value = '';
     }
