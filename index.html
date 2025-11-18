@@ -22,9 +22,17 @@
     .switch{text-align:center;margin-top:16px;color:#aaa;font-size:13px;}
     .switch a{color:var(--c2);cursor:pointer;text-decoration:underline;}
     @keyframes aura-pulse{0%{box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);}50%{box-shadow:0 0 20px var(--c1),0 0 40px rgba(0,255,255,.8);}100%{box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);}}
-    #topBar{background:rgba(0,0,0,.7);padding:8px 16px;color:#ccc;font-size:13px;border-bottom:1px solid var(--border);text-align:center;backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;}
+    #topBar{background:rgba(0,0,0,.7);padding:8px 16px;color:#ccc;font-size:13px;border-bottom:1px solid var(--border);backdrop-filter:blur(8px);display:flex;justify-content:space-between;align-items:center;}
+    #topBarLeft{display:flex;align-items:center;gap:16px;}
+    #topBarCenter{flex:1;display:flex;justify-content:center;}
+    #topBarRight{display:flex;align-items:center;gap:16px;}
+    #userInfo{display:flex;align-items:center;gap:10px;padding:4px 12px;background:rgba(0,255,255,.1);border-radius:20px;border:1px solid var(--c1);}
+    #userAvatar{width:32px;height:32px;border-radius:50%;border:2px solid var(--c1);object-fit:cover;}
+    #userDetails{display:flex;flex-direction:column;gap:2px;}
+    #userName{font-weight:600;color:var(--c1);font-size:13px;}
+    #userStatus{font-size:10px;color:var(--online);}
     #clock{color:var(--c1);font-weight:600;}
-    #playersOnline{color:var(--c1);font-weight:600;position:absolute;right:16px;}
+    #playersOnline{color:var(--c1);font-weight:600;padding:4px 12px;background:rgba(255,0,255,.1);border-radius:20px;border:1px solid var(--c2);}
     #tabs{display:flex;background:rgba(0,0,0,.85);border-bottom:2px solid var(--c1);backdrop-filter:blur(12px);user-select:none;}
     .tab{padding:14px 24px;cursor:pointer;font-weight:600;font-size:14px;transition:var(--transition);color:#ccc;position:relative;}
     .tab:hover{background:var(--accent);}
@@ -82,7 +90,7 @@
     .buy-btn:disabled{background:#666;cursor:not-allowed;}
     #pointsDisplay{color:var(--c1);font-weight:600;margin-bottom:10px;}
     #playBtn{background:var(--c1);color:#000;padding:8px 16px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:bold;transition:var(--transition);}
-    #userPanel{position:fixed;bottom:0;left:0;width:312px;background:rgba(0,0,0,.9);padding:10px 16px;display:flex;align-items:center;gap:12px;border-top:1px solid var(--border);z-index:1000;backdrop-filter:blur(10px);height:60px;}
+    #userPanel{display:none;}
     #userAvatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--c1);object-fit:cover;}
     #userName{font-weight:600;}
     #userStatus{font-size:11px;color:var(--online);}
@@ -110,8 +118,21 @@
 
   <!-- TOP BAR -->
   <div id="topBar">
-    <div id="clock"></div>
-    <div id="playersOnline">Players: 0</div>
+    <div id="topBarLeft">
+      <div id="userInfo">
+        <img id="userAvatar" src="https://i.imgur.com/6VBx3io.png" alt="avatar">
+        <div id="userDetails">
+          <span id="userName"></span>
+          <span id="userStatus"></span>
+        </div>
+      </div>
+    </div>
+    <div id="topBarCenter">
+      <div id="clock"></div>
+    </div>
+    <div id="topBarRight">
+      <div id="playersOnline">Players: 0</div>
+    </div>
   </div>
 
   <!-- TABS -->
@@ -232,7 +253,6 @@
       userAvatar: document.getElementById('userAvatar'),
       userName: document.getElementById('userName'),
       userStatus: document.getElementById('userStatus'),
-      userBio: document.getElementById('userBio'),
       connectionStatus: document.getElementById('connectionStatus'),
       globalMessages: document.getElementById('globalMessages'),
       globalMsgInput: document.getElementById('globalMsgInput'),
@@ -680,7 +700,6 @@
       document.body.dataset.theme = data.theme || 'dark';
       document.body.style.setProperty('--wallpaper', data.wallpaper ? `url(${data.wallpaper})` : 'none');
       els.userName.textContent = myName;
-      els.userBio.textContent = data.bio || '';
       els.userStatus.textContent = data.status || 'online';
       els.userStatus.style.color = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', invisible: 'var(--invisible)' }[data.status] || 'var(--online)';
       if (data.avatar) els.userAvatar.src = data.avatar;
