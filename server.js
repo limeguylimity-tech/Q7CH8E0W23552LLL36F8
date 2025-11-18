@@ -1,70 +1,363 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
+const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*" }, transports: ['websocket', 'polling'] });
+const io = new Server(server);
 
-app.use(express.static(__dirname));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-const users = new Map();
+// Middleware
+app.use(express.json());
+app.use(express.static('public'));
 
-io.on('connection', socket => {
-  socket.on('join', data => {
-    const name = (data.name || 'Guest').trim();
-    users.set(socket.id, { name });
-    socket.broadcast.emit('userOnline', { name });
-    const list = {};
-    users.forEach(u => list[u.name] = 'online');
-    io.emit('users', list);
+// Initialize database tables
+async function initDB() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        bio TEXT,
+        avatar TEXT,
+        status VARCHAR(20) DEFAULT 'online',
+        theme VARCHAR(20) DEFAULT 'dark',
+        points INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS servers (
+        id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        owner VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS channels (
+        id SERIAL PRIMARY KEY,
+        server_id VARCHAR(50) REFERENCES servers(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS server_members (
+        server_id VARCHAR(50) REFERENCES servers(id) ON DELETE CASCADE,
+        username VARCHAR(50),
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (server_id, username)
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        server_id VARCHAR(50),
+        channel_name VARCHAR(100),
+        username VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS direct_messages (
+        id SERIAL PRIMARY KEY,
+        from_user VARCHAR(50) NOT NULL,
+        to_user VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS global_messages (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS friends (
+        user1 VARCHAR(50),
+        user2 VARCHAR(50),
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user1, user2)
+      );
+    `);
+    console.log('✓ Database tables initialized');
+  } catch (err) {
+    console.error('Database init error:', err);
+  } finally {
+    client.release();
+  }
+}
+
+initDB();
+
+// API Routes
+app.post('/api/signup', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || username.length < 3 || !password || password.length < 4) {
+    return res.status(400).json({ error: 'Username 3+ chars, Password 4+ chars' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2)',
+      [username, hashedPassword]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Username taken' });
+    }
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = result.rows[0];
+    const valid = await bcrypt.compare(password, user.password);
+    
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    res.json({ 
+      success: true,
+      user: {
+        username: user.username,
+        bio: user.bio,
+        avatar: user.avatar,
+        status: user.status,
+        theme: user.theme,
+        points: user.points
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Socket.io - Real-time communication
+const onlineUsers = {};
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  socket.on('join', async ({ name }) => {
+    socket.username = name;
+    onlineUsers[name] = 'online';
+    
+    // Get user's servers
+    const servers = await pool.query(`
+      SELECT s.id, s.name, s.owner 
+      FROM servers s
+      JOIN server_members sm ON s.id = sm.server_id
+      WHERE sm.username = $1
+    `, [name]);
+
+    // Get channels for each server
+    const serversData = {};
+    for (const srv of servers.rows) {
+      const channels = await pool.query(
+        'SELECT name FROM channels WHERE server_id = $1 ORDER BY id',
+        [srv.id]
+      );
+      const members = await pool.query(
+        'SELECT username FROM server_members WHERE server_id = $1',
+        [srv.id]
+      );
+      serversData[srv.id] = {
+        name: srv.name,
+        owner: srv.owner,
+        channels: channels.rows.map(c => c.name),
+        members: members.rows.map(m => m.username)
+      };
+    }
+
+    socket.emit('userData', { servers: serversData });
+    io.emit('users', onlineUsers);
+    io.emit('userOnline', { name });
   });
 
-  socket.on('channelMessage', data => {
-    const user = users.get(socket.id);
-    if (!user) return;
-    const msg = { user: user.name, text: data.msg.text, time: data.msg.time };
-    io.emit('channelMessage', { server: data.server, channel: data.channel, msg });
+  socket.on('createServer', async ({ serverId, server }) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      await client.query(
+        'INSERT INTO servers (id, name, owner) VALUES ($1, $2, $3)',
+        [serverId, server.name, server.owner]
+      );
+
+      await client.query(
+        'INSERT INTO server_members (server_id, username) VALUES ($1, $2)',
+        [serverId, server.owner]
+      );
+
+      await client.query(
+        'INSERT INTO channels (server_id, name) VALUES ($1, $2)',
+        [serverId, 'general']
+      );
+
+      await client.query('COMMIT');
+      
+      io.emit('serverCreated', { serverId, server: { ...server, channels: ['general'], members: [server.owner] } });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Error creating server:', err);
+    } finally {
+      client.release();
+    }
   });
 
-  socket.on('globalMessage', msg => {
-    const user = users.get(socket.id);
-    if (!user) return;
-    io.emit('globalMessage', { user: user.name, text: msg.text, time: msg.time });
+  socket.on('getServers', async () => {
+    try {
+      const servers = await pool.query('SELECT id, name, owner FROM servers');
+      const allServers = {};
+      
+      for (const srv of servers.rows) {
+        const channels = await pool.query(
+          'SELECT name FROM channels WHERE server_id = $1',
+          [srv.id]
+        );
+        const members = await pool.query(
+          'SELECT username FROM server_members WHERE server_id = $1',
+          [srv.id]
+        );
+        
+        allServers[srv.id] = {
+          name: srv.name,
+          owner: srv.owner,
+          channels: channels.rows.map(c => c.name),
+          members: members.rows.map(m => m.username)
+        };
+      }
+      
+      socket.emit('allServers', allServers);
+    } catch (err) {
+      console.error('Error getting servers:', err);
+    }
   });
 
-  socket.on('friendRequest', data => {
-    const from = users.get(socket.id)?.name;
-    if (!from || !data.to) return;
-    const target = [...users.entries()].find(([id, u]) => u.name === data.to)?.[0];
-    if (target) io.to(target).emit('friendRequest', { from });
+  socket.on('joinServer', async ({ serverId, username }) => {
+    try {
+      await pool.query(
+        'INSERT INTO server_members (server_id, username) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [serverId, username]
+      );
+    } catch (err) {
+      console.error('Error joining server:', err);
+    }
   });
 
-  socket.on('acceptFriend', data => {
-    const from = users.get(socket.id)?.name;
-    if (!from || !data.to) return;
-    const target = [...users.entries()].find(([id, u]) => u.name === data.to)?.[0];
-    if (target) io.to(target).emit('acceptFriend', { from });
+  socket.on('channelMessage', async ({ server, channel, msg }) => {
+    try {
+      await pool.query(
+        'INSERT INTO messages (server_id, channel_name, username, message, created_at) VALUES ($1, $2, $3, $4, $5)',
+        [server, channel, msg.user, msg.text, new Date()]
+      );
+      io.emit('channelMessage', { server, channel, msg });
+    } catch (err) {
+      console.error('Error saving message:', err);
+    }
   });
 
-  socket.on('dm', data => {
-    const from = users.get(socket.id)?.name;
-    if (!from || !data.to) return;
-    const target = [...users.entries()].find(([id, u]) => u.name === data.to)?.[0];
-    if (target) {
-      io.to(target).emit('dm', { from, msg: data.msg });
-      socket.emit('dm', { from, msg: data.msg }); // echo back
+  socket.on('getMessages', async ({ server, channel }) => {
+    try {
+      const result = await pool.query(
+        'SELECT username, message, created_at FROM messages WHERE server_id = $1 AND channel_name = $2 ORDER BY created_at ASC LIMIT 100',
+        [server, channel]
+      );
+      
+      const messages = result.rows.map(row => ({
+        user: row.username,
+        text: row.message,
+        time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      
+      socket.emit('messageHistory', { server, channel, messages });
+    } catch (err) {
+      console.error('Error getting messages:', err);
+    }
+  });
+
+  socket.on('dm', async ({ to, msg }) => {
+    try {
+      await pool.query(
+        'INSERT INTO direct_messages (from_user, to_user, message, created_at) VALUES ($1, $2, $3, $4)',
+        [msg.user, to, msg.text, new Date()]
+      );
+      
+      // Find recipient's socket and send
+      for (const [id, sock] of io.sockets.sockets) {
+        if (sock.username === to) {
+          sock.emit('dm', { from: msg.user, msg });
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('Error sending DM:', err);
+    }
+  });
+
+  socket.on('globalMessage', async ({ text, time }) => {
+    const msg = { user: socket.username, text, time };
+    try {
+      await pool.query(
+        'INSERT INTO global_messages (username, message, created_at) VALUES ($1, $2, $3)',
+        [socket.username, text, new Date()]
+      );
+      io.emit('globalMessage', msg);
+    } catch (err) {
+      console.error('Error sending global message:', err);
+    }
+  });
+
+  socket.on('friendRequest', async ({ to }) => {
+    try {
+      await pool.query(
+        'INSERT INTO friends (user1, user2, status) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [socket.username, to, 'pending']
+      );
+      
+      for (const [id, sock] of io.sockets.sockets) {
+        if (sock.username === to) {
+          sock.emit('friendRequest', { from: socket.username });
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('Error sending friend request:', err);
     }
   });
 
   socket.on('disconnect', () => {
-    const user = users.get(socket.id);
-    if (user) io.emit('userOffline', { name: user.name });
-    users.delete(socket.id);
+    if (socket.username) {
+      delete onlineUsers[socket.username];
+      io.emit('users', onlineUsers);
+      io.emit('userOffline', { name: socket.username });
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`GHOSTCORD v6.3 on ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`✓ GHOSTCORD server running on port ${PORT}`);
+});
