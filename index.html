@@ -70,6 +70,7 @@
     #sendBtn:hover, #dmSendBtn:hover, #globalSendBtn:hover{background:#0cc;box-shadow:0 0 15px var(--c1),0 0 30px rgba(0,255,255,.7);}
     #dmView,#friendsView,#newsView,#shopView,#gamesView,#settingsView,#globalView,#serverListView{flex:1;display:none;flex-direction:column;background:rgba(0,0,0,.9);backdrop-filter:blur(10px);position:relative;overflow:hidden;}
     #dmHeader,#globalHeader,#serverListHeader{padding:16px;border-bottom:1px solid var(--border);font-weight:600;color:var(--c1);display:flex;justify-content:space-between;align-items:center;}
+    #dmMessages{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
     #dmList,#friendsList,#newsFeed,#shopItems,#gameContainer,#serverList{padding:20px;overflow-y:auto;flex:1;}
     .dm-user,.friend,.server-item{padding:12px 16px;margin:8px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:12px;font-size:14px;background:var(--card);border-left:4px solid var(--c1);transition:var(--transition);}
     .dm-user:hover,.friend:hover,.server-item:hover{background:var(--accent);transform:translateX(4px);}
@@ -131,7 +132,7 @@
       <div id="clock"></div>
     </div>
     <div id="topBarRight">
-      <div id="playersOnline">People: 0</div>
+      <div id="playersOnline">Players: 0</div>
     </div>
   </div>
 
@@ -187,7 +188,7 @@
       <span>Select a DM</span>
       <button id="clearDmBtn" class="btn-small" style="background:#f55;">Clear</button>
     </div>
-    <div id="messages"></div>
+    <div id="dmMessages"></div>
     <div id="inputArea">
       <textarea id="dmInput" placeholder="Select a DM..."></textarea>
       <button id="dmSendBtn" disabled>Send</button>
@@ -362,7 +363,7 @@
         messages[key].push(data.msg);
         saveMessages();
         if (currentDM === data.from) {
-          const dmMessages = document.querySelector('#dmView #messages');
+          const dmMessages = document.getElementById('dmMessages');
           appendMessage(data.msg, dmMessages);
         }
       });
@@ -521,7 +522,7 @@
         if (document.getElementById('globalView').style.display !== 'none') {
           els.globalMessages.innerHTML = '';
         } else if (document.getElementById('dmView').style.display !== 'none') {
-          document.querySelector('#dmView #messages').innerHTML = '';
+          document.getElementById('dmMessages').innerHTML = '';
         } else {
           document.querySelector('#chatArea #messages').innerHTML = '';
         }
@@ -599,7 +600,7 @@
       currentDM = user;
       showTab('dms');
       document.querySelector('#dmHeader span').textContent = `@${user}`;
-      const dmMessages = document.querySelector('#dmView #messages');
+      const dmMessages = document.getElementById('dmMessages');
       loadMessages(dmMessages);
       document.getElementById('dmInput').placeholder = `Message @${user}...`;
       document.getElementById('dmSendBtn').disabled = false;
