@@ -364,7 +364,9 @@
 
       socket.on('userData', data => {
         servers = data.servers || {};
+        friends = data.friends || {};
         renderServers();
+        updateFriendsList();
       });
 
       socket.on('users', list => { 
