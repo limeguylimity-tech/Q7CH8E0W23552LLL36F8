@@ -196,7 +196,29 @@ io.on('connection', (socket) => {
       };
     }
 
-    socket.emit('userData', { servers: serversData });
+    // Get user's friends
+    const friendsData = {};
+    const friends = await pool.query(`
+      SELECT 
+        CASE 
+          WHEN user1 = $1 THEN user2
+          ELSE user1
+        END as friend_username,
+        status,
+        CASE 
+          WHEN user1 = $1 AND status = 'pending' THEN 'sent'
+          WHEN user2 = $1 AND status = 'pending' THEN 'pending'
+          ELSE status
+        END as display_status
+      FROM friends 
+      WHERE user1 = $1 OR user2 = $1
+    `, [name]);
+
+    friends.rows.forEach(row => {
+      friendsData[row.friend_username] = row.display_status;
+    });
+
+    socket.emit('userData', { servers: serversData, friends: friendsData });
     io.emit('users', onlineUsers);
     io.emit('userOnline', { name });
   });
