@@ -94,7 +94,7 @@
     #userAvatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--c1);object-fit:cover;}
     #userName{font-weight:600;}
     #userStatus{font-size:11px;color:var(--online);}
-    #connectionStatus{position:fixed;top:10px;right:10px;padding:8px 16px;border-radius:var(--radius);font-size:12px;font-weight:bold;z-index:1000;}
+    #connectionStatus{position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);padding:16px 32px;border-radius:var(--radius);font-size:14px;font-weight:bold;z-index:10001;display:none;box-shadow:0 0 20px rgba(0,0,0,.5);transition:var(--transition);}
     .status-connected{background:#0f0;color:#000;}
     .status-connecting{background:#fa0;color:#000;}
     .btn-small{background:var(--c1);color:#000;padding:6px 10px;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:bold;margin:5px 8px;transition:var(--transition);box-shadow:0 0 10px var(--c1),0 0 20px rgba(0,255,255,.5);animation:aura-pulse 2s infinite ease-in-out;}
@@ -237,8 +237,8 @@
     <span id="userBio"></span>
   </div>
 
-  <!-- CONNECTION -->
-  <div id="connectionStatus" class="status-connecting">Connecting...</div>
+  <!-- CONNECTION POPUP -->
+  <div id="connectionStatus" class="status-connecting" style="display:block;">Connecting...</div>
 
   <script>
     const socket = io(location.origin, { transports: ['websocket', 'polling'] });
@@ -310,7 +310,14 @@
 
       socket.emit('join', { name: myName });
 
-      socket.on('connect', () => { els.connectionStatus.textContent = 'Connected'; els.connectionStatus.className = 'status-connected'; });
+      socket.on('connect', () => { 
+        els.connectionStatus.textContent = '✓ Connected'; 
+        els.connectionStatus.className = 'status-connected';
+        els.connectionStatus.style.display = 'block';
+        setTimeout(() => {
+          els.connectionStatus.style.display = 'none';
+        }, 2000);
+      });
       socket.on('users', list => { onlineUsers = list; updatePlayers(); updateFriendsList(); });
       socket.on('userOnline', d => { onlineUsers[d.name] = 'online'; updatePlayers(); updateFriendsList(); });
       socket.on('userOffline', d => { delete onlineUsers[d.name]; updatePlayers(); updateFriendsList(); });
