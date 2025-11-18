@@ -169,6 +169,9 @@ io.on('connection', (socket) => {
     socket.username = name;
     onlineUsers[name] = 'online';
     
+    console.log(`User ${name} joined with socket ID: ${socket.id}`);
+    console.log(`Online users:`, Object.keys(onlineUsers));
+    
     // Get user's servers
     const servers = await pool.query(`
       SELECT s.id, s.name, s.owner 
@@ -359,19 +362,102 @@ io.on('connection', (socket) => {
 
   socket.on('friendRequest', async ({ to }) => {
     try {
+      // Check if user exists
+      const userExists = await pool.query('SELECT username FROM users WHERE username = $1', [to]);
+      if (userExists.rows.length === 0) {
+        socket.emit('friendError', { message: 'User not found' });
+        return;
+      }
+
+      // Check if already friends
+      const existing = await pool.query(
+        'SELECT * FROM friends WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)',
+        [socket.username, to]
+      );
+      
+      if (existing.rows.length > 0) {
+        socket.emit('friendError', { message: 'Already friends or request pending' });
+        return;
+      }
+
       await pool.query(
-        'INSERT INTO friends (user1, user2, status) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        'INSERT INTO friends (user1, user2, status) VALUES ($1, $2, $3)',
         [socket.username, to, 'pending']
       );
       
+      // Notify recipient if online
       for (const [id, sock] of io.sockets.sockets) {
         if (sock.username === to) {
           sock.emit('friendRequest', { from: socket.username });
           break;
         }
       }
+      
+      socket.emit('friendRequestSent', { to });
     } catch (err) {
       console.error('Error sending friend request:', err);
+      socket.emit('friendError', { message: 'Failed to send request' });
+    }
+  });
+
+  socket.on('acceptFriend', async ({ to }) => {
+    try {
+      console.log(`${socket.username} is accepting friend request from ${to}`);
+      
+      // Update the friend status to 'accepted' for both directions
+      await pool.query(
+        'UPDATE friends SET status = $1 WHERE (user1 = $2 AND user2 = $3) OR (user1 = $3 AND user2 = $2)',
+        ['accepted', to, socket.username]
+      );
+      
+      console.log(`Friend status updated in database`);
+      
+      // Notify the person who SENT the request (the 'to' person)
+      let notified = false;
+      for (const [id, sock] of io.sockets.sockets) {
+        if (sock.username === to) {
+          console.log(`Sending acceptFriend event to ${to}`);
+          sock.emit('acceptFriend', { from: socket.username });
+          notified = true;
+          break;
+        }
+      }
+      
+      if (!notified) {
+        console.log(`${to} is not currently online`);
+      }
+      
+      // Confirm to the person who accepted
+      socket.emit('friendAccepted', { friend: to });
+      console.log(`Sent friendAccepted confirmation to ${socket.username}`);
+    } catch (err) {
+      console.error('Error accepting friend:', err);
+    }
+  });
+
+  socket.on('removeFriend', async ({ username }) => {
+    try {
+      console.log(`${socket.username} is removing friend ${username}`);
+      
+      // Delete from database
+      await pool.query(
+        'DELETE FROM friends WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)',
+        [socket.username, username]
+      );
+      
+      console.log(`Friend removed from database`);
+      
+      // Notify the other person if they're online
+      for (const [id, sock] of io.sockets.sockets) {
+        if (sock.username === username) {
+          sock.emit('friendRemoved', { from: socket.username });
+          break;
+        }
+      }
+      
+      socket.emit('friendRemovedConfirm', { username });
+    } catch (err) {
+      console.error('Error removing friend:', err);
     }
   });
 
