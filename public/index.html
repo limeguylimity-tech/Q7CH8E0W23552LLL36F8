@@ -426,6 +426,16 @@
         show(`Friend request from ${d.from}`);
       });
 
+      socket.on('friendRequestSent', d => {
+        friends[d.to] = 'sent';
+        updateFriendsList();
+        show(`Sent request to ${d.to}`);
+      });
+
+      socket.on('friendError', d => {
+        show(d.message);
+      });
+
       socket.on('dm', data => {
         if (currentDM === data.from) {
           const dmMessages = document.getElementById('dmMessages');
@@ -434,10 +444,24 @@
       });
 
       socket.on('acceptFriend', d => {
+        // This event is received by the person who SENT the request
+        console.log('Received acceptFriend:', d);
+        console.log('Current friends:', friends);
         if (friends[d.from]) {
-          friends[d.from] = 'online';
+          friends[d.from] = 'accepted';
+          console.log('Updated friend status to accepted');
           updateFriendsList();
           show(`${d.from} accepted your friend request!`);
+        } else {
+          console.log('Friend not found in list:', d.from);
+        }
+      });
+
+      socket.on('friendAccepted', d => {
+        // This event confirms to the person who ACCEPTED
+        if (friends[d.friend]) {
+          friends[d.friend] = 'accepted';
+          updateFriendsList();
         }
       });
 
@@ -616,8 +640,10 @@
       list.innerHTML = '';
       Object.entries(friends).forEach(([name, status]) => {
         const div = document.createElement('div');
-        div.className = `friend ${status === 'online' ? '' : status === 'pending' || status === 'sent' ? 'pending' : 'offline'}`;
-        const color = status === 'online' ? 'var(--online)' : '#666';
+        const isOnline = onlineUsers[name] ? true : false;
+        const showStatus = status === 'accepted' ? (isOnline ? 'online' : 'offline') : status;
+        div.className = `friend ${showStatus === 'pending' || showStatus === 'sent' ? 'pending' : (isOnline ? '' : 'offline')}`;
+        const color = isOnline ? 'var(--online)' : '#666';
         div.innerHTML = `<div class="status-dot" style="background:${color}"></div><span>${name}</span>`;
         
         if (status === 'pending') {
@@ -625,7 +651,7 @@
           accept.className = 'accept-btn'; 
           accept.textContent = 'Accept';
           accept.onclick = () => {
-            friends[name] = 'online';
+            friends[name] = 'accepted';
             updateFriendsList();
             socket.emit('acceptFriend', { to: name });
           };
@@ -645,7 +671,7 @@
           pending.style.marginLeft = '10px';
           pending.textContent = '(Request Sent)';
           div.appendChild(pending);
-        } else {
+        } else if (status === 'accepted') {
           div.onclick = () => openDM(name);
         }
         list.appendChild(div);
@@ -653,13 +679,19 @@
     }
 
     function addFriend() {
-      const name = document.getElementById('addFriendInput').value.trim();
-      if (!name || name === myName || friends[name]) return show('Invalid');
-      friends[name] = 'sent';
-      updateFriendsList();
+      const input = document.getElementById('addFriendInput');
+      const name = input.value.trim();
+      if (!name || name === myName) {
+        show('Invalid username');
+        return;
+      }
+      if (friends[name]) {
+        show('Already in friend list');
+        return;
+      }
+      
       socket.emit('friendRequest', { to: name });
-      show(`Sent request to ${name}`);
-      document.getElementById('addFriendInput').value = '';
+      input.value = '';
     }
 
     function openDM(user) {
