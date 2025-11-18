@@ -237,7 +237,7 @@
   <div id="connectionStatus" class="status-connecting" style="display:block;">Connecting...</div>
 
   <script>
-    const socket = io(location.origin, { transports: ['websocket', 'polling'] });
+    let socket = null;
     let myName = null, currentServer = null, currentChannel = null, currentDM = null;
     let servers = {}, onlineUsers = {}, friends = {}, points = 0, allServers = {};
     let userData = {};
@@ -323,13 +323,34 @@
     function initApp() {
       points = userData.points || 0;
 
-      socket.emit('join', { name: myName });
+      // Show connecting status
+      els.connectionStatus.textContent = 'Connecting...';
+      els.connectionStatus.className = 'status-connecting';
+      els.connectionStatus.style.display = 'block';
 
       socket.on('connect', () => { 
+        console.log('Socket connected!');
         els.connectionStatus.textContent = '✓ Connected'; 
         els.connectionStatus.className = 'status-connected';
         els.connectionStatus.style.display = 'block';
         setTimeout(() => els.connectionStatus.style.display = 'none', 2000);
+        
+        // Emit join after connection is confirmed
+        socket.emit('join', { name: myName });
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        els.connectionStatus.textContent = '✗ Connection Failed';
+        els.connectionStatus.style.background = '#f55';
+        els.connectionStatus.style.color = '#000';
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        els.connectionStatus.textContent = 'Disconnected';
+        els.connectionStatus.className = 'status-connecting';
+        els.connectionStatus.style.display = 'block';
       });
 
       socket.on('userData', data => {
