@@ -363,8 +363,10 @@
       });
 
       socket.on('userData', data => {
+        console.log('Received userData:', data);
         servers = data.servers || {};
         friends = data.friends || {};
+        console.log('Loaded friends:', friends);
         renderServers();
         updateFriendsList();
       });
