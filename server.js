@@ -403,6 +403,8 @@ io.on('connection', (socket) => {
   socket.on('acceptFriend', async ({ to }) => {
     try {
       console.log(`${socket.username} is accepting friend request from ${to}`);
+      console.log(`Looking for socket connection for user: ${to}`);
+      console.log(`All connected sockets:`, Array.from(io.sockets.sockets.entries()).map(([id, s]) => ({ id, username: s.username })));
       
       // Update the friend status to 'accepted' for both directions
       await pool.query(
@@ -415,8 +417,9 @@ io.on('connection', (socket) => {
       // Notify the person who SENT the request (the 'to' person)
       let notified = false;
       for (const [id, sock] of io.sockets.sockets) {
+        console.log(`Checking socket ${id}: username = ${sock.username}`);
         if (sock.username === to) {
-          console.log(`Sending acceptFriend event to ${to}`);
+          console.log(`FOUND! Sending acceptFriend event to ${to} via socket ${id}`);
           sock.emit('acceptFriend', { from: socket.username });
           notified = true;
           break;
@@ -424,7 +427,7 @@ io.on('connection', (socket) => {
       }
       
       if (!notified) {
-        console.log(`${to} is not currently online`);
+        console.log(`ERROR: ${to} is not currently online or socket not found`);
       }
       
       // Confirm to the person who accepted
@@ -458,6 +461,29 @@ io.on('connection', (socket) => {
       socket.emit('friendRemovedConfirm', { username });
     } catch (err) {
       console.error('Error removing friend:', err);
+    }
+  });
+
+  socket.on('deleteAccount', async () => {
+    try {
+      const username = socket.username;
+      console.log(`Deleting account: ${username}`);
+      
+      // Delete all user data
+      await pool.query('DELETE FROM direct_messages WHERE from_user = $1 OR to_user = $1', [username]);
+      await pool.query('DELETE FROM messages WHERE username = $1', [username]);
+      await pool.query('DELETE FROM global_messages WHERE username = $1', [username]);
+      await pool.query('DELETE FROM friends WHERE user1 = $1 OR user2 = $1', [username]);
+      await pool.query('DELETE FROM server_members WHERE username = $1', [username]);
+      await pool.query('DELETE FROM channels WHERE server_id IN (SELECT id FROM servers WHERE owner = $1)', [username]);
+      await pool.query('DELETE FROM servers WHERE owner = $1', [username]);
+      await pool.query('DELETE FROM users WHERE username = $1', [username]);
+      
+      console.log(`Account ${username} deleted successfully`);
+      socket.emit('accountDeleted');
+    } catch (err) {
+      console.error('Error deleting account:', err);
+      socket.emit('deleteError', { message: 'Failed to delete account' });
     }
   });
 
