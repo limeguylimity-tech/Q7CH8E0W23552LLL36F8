@@ -601,7 +601,7 @@
     function addFriend() {
       const name = document.getElementById('addFriendInput').value.trim();
       if (!name || name === myName || friends[name]) return show('Invalid');
-      friends[name] = 'pending';
+      friends[name] = 'sent'; // Mark as 'sent' instead of 'pending'
       saveUserData();
       updateFriendsList();
       socket.emit('friendRequest', { to: name });
