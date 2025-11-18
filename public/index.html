@@ -231,6 +231,10 @@
     <img id="avatarPreview" src="" style="width:100px;height:100px;border-radius:50%;margin:10px 0;">
     <button id="saveSettingsBtn" class="btn">Save Settings</button>
     <button id="logoutBtn" class="btn">Logout</button>
+    <div style="margin-top:30px;padding-top:30px;border-top:2px solid var(--border);">
+      <h3 style="color:#f55;margin-bottom:10px;">Danger Zone</h3>
+      <button id="deleteAccountBtn" class="btn" style="background:#f55;">Delete Account</button>
+    </div>
   </div>
 
   <!-- CONNECTION POPUP -->
@@ -467,6 +471,23 @@
         }
       });
 
+      socket.on('friendRemoved', d => {
+        // Someone removed you as a friend
+        if (friends[d.from]) {
+          delete friends[d.from];
+          updateFriendsList();
+        }
+      });
+
+      socket.on('friendRemovedConfirm', d => {
+        // Confirmation that you removed someone
+        if (friends[d.username]) {
+          delete friends[d.username];
+          updateFriendsList();
+          show(`Removed ${d.username}`);
+        }
+      });
+
       loadSettings();
       updateClock(); 
       setInterval(updateClock, 60000);
@@ -661,8 +682,7 @@
           reject.className = 'reject-btn'; 
           reject.textContent = 'Reject';
           reject.onclick = () => { 
-            delete friends[name]; 
-            updateFriendsList(); 
+            socket.emit('removeFriend', { username: name });
           };
           div.appendChild(accept); 
           div.appendChild(reject);
@@ -673,8 +693,29 @@
           pending.style.marginLeft = '10px';
           pending.textContent = '(Request Sent)';
           div.appendChild(pending);
+          
+          const cancel = document.createElement('button');
+          cancel.className = 'reject-btn';
+          cancel.textContent = '✕';
+          cancel.style.marginLeft = '8px';
+          cancel.onclick = () => {
+            socket.emit('removeFriend', { username: name });
+          };
+          div.appendChild(cancel);
         } else if (status === 'accepted') {
           div.onclick = () => openDM(name);
+          
+          const remove = document.createElement('button');
+          remove.className = 'reject-btn';
+          remove.textContent = 'Remove';
+          remove.style.marginLeft = 'auto';
+          remove.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Remove ${name} from friends?`)) {
+              socket.emit('removeFriend', { username: name });
+            }
+          };
+          div.appendChild(remove);
         }
         list.appendChild(div);
       });
