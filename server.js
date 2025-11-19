@@ -487,11 +487,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Voice calling WebRTC signaling
+  socket.on('callUser', ({ to, offer }) => {
+    console.log(`${socket.username} is calling ${to}`);
+    for (const [id, sock] of io.sockets.sockets) {
+      if (sock.username === to) {
+        console.log(`Sending call to ${to} via socket ${id}`);
+        sock.emit('incomingCall', { from: socket.username, offer });
+        break;
+      }
+    }
+  });
+
+  socket.on('answerCall', ({ to, answer }) => {
+    console.log(`${socket.username} answered call from ${to}`);
+    for (const [id, sock] of io.sockets.sockets) {
+      if (sock.username === to) {
+        console.log(`Sending answer to ${to} via socket ${id}`);
+        sock.emit('callAnswered', { from: socket.username, answer });
+        break;
+      }
+    }
+  });
+
+  socket.on('iceCandidate', ({ to, candidate }) => {
+    for (const [id, sock] of io.sockets.sockets) {
+      if (sock.username === to) {
+        sock.emit('iceCandidate', { from: socket.username, candidate });
+        break;
+      }
+    }
+  });
+
+  socket.on('endCall', ({ to }) => {
+    console.log(`${socket.username} ended call with ${to}`);
+    for (const [id, sock] of io.sockets.sockets) {
+      if (sock.username === to) {
+        console.log(`Notifying ${to} that call ended`);
+        sock.emit('callEnded', { from: socket.username });
+        break;
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     if (socket.username) {
       delete onlineUsers[socket.username];
       io.emit('users', onlineUsers);
       io.emit('userOffline', { name: socket.username });
+      console.log(`User ${socket.username} disconnected`);
     }
   });
 });
