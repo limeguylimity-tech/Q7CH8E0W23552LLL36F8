@@ -103,7 +103,6 @@
 <body>
   <div id="notifications"></div>
 
-  <!-- LOGIN -->
   <div id="loginScreen">
     <div id="loginBox">
       <h2 id="loginTitle">Sign In</h2>
@@ -114,7 +113,6 @@
     </div>
   </div>
 
-  <!-- TOP BAR -->
   <div id="topBar">
     <div id="topBarLeft">
       <div id="userInfo">
@@ -133,7 +131,6 @@
     </div>
   </div>
 
-  <!-- TABS -->
   <div id="tabs">
     <div class="tab active" data-tab="home">Home</div>
     <div class="tab" data-tab="serverlist">Servers</div>
@@ -146,7 +143,6 @@
     <div class="tab" data-tab="settings">Settings</div>
   </div>
 
-  <!-- HOME -->
   <div id="app">
     <div id="servers">
       <div class="srv add" id="addServerBtn">+</div>
@@ -171,7 +167,6 @@
     </div>
   </div>
 
-  <!-- SERVER LIST -->
   <div id="serverListView">
     <div id="serverListHeader">
       <h3>All Servers</h3>
@@ -179,7 +174,6 @@
     <div id="serverList"></div>
   </div>
 
-  <!-- DMs -->
   <div id="dmView">
     <div id="dmHeader">
       <span>Select a DM</span>
@@ -192,7 +186,6 @@
     </div>
   </div>
 
-  <!-- Global Chat -->
   <div id="globalView">
     <div id="globalHeader">
       <span>Global Chat</span>
@@ -205,7 +198,6 @@
     </div>
   </div>
 
-  <!-- Friends, News, Shop, Games -->
   <div id="friendsView">
     <input id="addFriendInput" class="input" placeholder="Add friend...">
     <button id="addFriendBtn" class="btn-small">Add</button>
@@ -221,7 +213,6 @@
     </div>
   </div>
 
-  <!-- Settings -->
   <div id="settingsView">
     <input id="nameInput" class="input" placeholder="Name" readonly>
     <input id="bioInput" class="input" placeholder="Bio">
@@ -237,10 +228,8 @@
     </div>
   </div>
 
-  <!-- CONNECTION POPUP -->
   <div id="connectionStatus" class="status-connecting" style="display:none;">Connecting...</div>
 
-  <!-- CALL UI -->
   <div id="callUI" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:32px;border-radius:var(--radius);border:2px solid var(--c1);box-shadow:0 0 40px rgba(0,255,255,.5);z-index:10002;min-width:300px;text-align:center;">
     <div id="callStatus" style="color:var(--c1);font-size:18px;font-weight:600;margin-bottom:20px;">Calling...</div>
     <div id="callUser" style="color:var(--text);font-size:16px;margin-bottom:20px;"></div>
@@ -257,18 +246,21 @@
     let servers = {}, onlineUsers = {}, friends = {}, points = 0, allServers = {};
     let userData = {};
 
-    // WebRTC voice calling
+    // WebRTC voice calling - FIXED VERSION
     let peerConnection = null;
     let localStream = null;
-    let remoteStream = null;
+    let remoteAudio = null;
     let currentCall = null;
     let callTimer = null;
     let callStartTime = null;
+    let pendingIceCandidates = [];
+    let isConnectionReady = false;
 
     const iceServers = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
       ]
     };
 
@@ -296,7 +288,6 @@
       setTimeout(() => els.notifications.style.display = 'none', 3000); 
     }
 
-    // LOGIN
     let isSignup = false;
     document.getElementById('authBtn').onclick = () => {
       const u = document.getElementById('username').value.trim();
@@ -345,7 +336,6 @@
         myName = u;
         els.loginScreen.style.display = 'none';
         
-        // Initialize socket AFTER successful login
         socket = io(location.origin, { 
           transports: ['websocket', 'polling'],
           reconnection: true,
@@ -362,7 +352,6 @@
     function initApp() {
       points = userData.points || 0;
 
-      // Show connecting status
       els.connectionStatus.textContent = 'Connecting...';
       els.connectionStatus.className = 'status-connecting';
       els.connectionStatus.style.display = 'block';
@@ -374,7 +363,6 @@
         els.connectionStatus.style.display = 'block';
         setTimeout(() => els.connectionStatus.style.display = 'none', 2000);
         
-        // Emit join after connection is confirmed
         socket.emit('join', { name: myName });
       });
 
@@ -396,7 +384,6 @@
         console.log('Received userData:', data);
         servers = data.servers || {};
         friends = data.friends || {};
-        console.log('Loaded friends:', friends);
         renderServers();
         updateFriendsList();
       });
@@ -476,21 +463,15 @@
       });
 
       socket.on('acceptFriend', d => {
-        // This event is received by the person who SENT the request
         console.log('Received acceptFriend:', d);
-        console.log('Current friends:', friends);
         if (friends[d.from]) {
           friends[d.from] = 'accepted';
-          console.log('Updated friend status to accepted');
           updateFriendsList();
           show(`${d.from} accepted your friend request!`);
-        } else {
-          console.log('Friend not found in list:', d.from);
         }
       });
 
       socket.on('friendAccepted', d => {
-        // This event confirms to the person who ACCEPTED
         if (friends[d.friend]) {
           friends[d.friend] = 'accepted';
           updateFriendsList();
@@ -498,7 +479,6 @@
       });
 
       socket.on('friendRemoved', d => {
-        // Someone removed you as a friend
         if (friends[d.from]) {
           delete friends[d.from];
           updateFriendsList();
@@ -506,7 +486,6 @@
       });
 
       socket.on('friendRemovedConfirm', d => {
-        // Confirmation that you removed someone
         if (friends[d.username]) {
           delete friends[d.username];
           updateFriendsList();
@@ -523,38 +502,61 @@
         show(d.message);
       });
 
-      // Voice calling events
+      // Voice calling events - FIXED
       socket.on('incomingCall', async ({ from, offer }) => {
-        console.log('Incoming call from:', from);
+        console.log('📞 Incoming call from:', from);
         currentCall = from;
+        pendingIceCandidates = [];
+        window.pendingOffer = offer;
+        
         document.getElementById('callUser').textContent = from;
         document.getElementById('callStatus').textContent = `Incoming Call from ${from}`;
         document.getElementById('acceptCallBtn').style.display = 'block';
         document.getElementById('callUI').style.display = 'block';
         document.getElementById('callTimer').style.display = 'none';
         
-        // Store the offer for when user accepts
-        window.pendingOffer = offer;
-        
-        // Play ringtone sound (optional)
         show(`📞 Incoming call from ${from}!`);
       });
 
       socket.on('callAnswered', async ({ from, answer }) => {
-        console.log('Call answered by:', from);
-        document.getElementById('callStatus').textContent = 'Connected';
-        document.getElementById('callTimer').style.display = 'block';
-        startCallTimer();
-        if (peerConnection) {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('✅ Call answered by:', from);
+        try {
+          if (peerConnection) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            console.log('Remote description set successfully');
+            isConnectionReady = true;
+            
+            // Process any pending ICE candidates
+            if (pendingIceCandidates.length > 0) {
+              console.log(`Processing ${pendingIceCandidates.length} pending ICE candidates`);
+              for (const candidate of pendingIceCandidates) {
+                try {
+                  await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (err) {
+                  console.error('Error adding pending ICE candidate:', err);
+                }
+              }
+              pendingIceCandidates = [];
+            }
+          }
+        } catch (err) {
+          console.error('Error setting remote description:', err);
+          show('Call connection error');
+          endCall(true);
         }
       });
 
       socket.on('iceCandidate', async ({ from, candidate }) => {
-        console.log('Received ICE candidate from:', from);
+        console.log('🧊 Received ICE candidate from:', from);
         if (peerConnection && candidate) {
           try {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            if (isConnectionReady && peerConnection.remoteDescription) {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+              console.log('ICE candidate added successfully');
+            } else {
+              console.log('Queuing ICE candidate (remote description not set yet)');
+              pendingIceCandidates.push(candidate);
+            }
           } catch (err) {
             console.error('Error adding ICE candidate:', err);
           }
@@ -562,9 +564,15 @@
       });
 
       socket.on('callEnded', ({ from }) => {
-        console.log('Call ended by:', from);
-        endCall(false); // false = don't notify other user (they already know)
+        console.log('📞 Call ended by:', from);
+        endCall(false);
         show(`Call with ${from} ended`);
+      });
+
+      socket.on('callError', ({ message }) => {
+        console.error('Call error:', message);
+        show(`Call error: ${message}`);
+        endCall(false);
       });
 
       loadSettings();
@@ -927,53 +935,104 @@
       }
     }
 
-    // Voice calling functions
+    // FIXED Voice calling functions
     async function startCall(username) {
       try {
         currentCall = username;
+        pendingIceCandidates = [];
+        isConnectionReady = false;
+        
         document.getElementById('callUser').textContent = username;
         document.getElementById('callStatus').textContent = 'Calling...';
         document.getElementById('callUI').style.display = 'block';
         document.getElementById('acceptCallBtn').style.display = 'none';
         document.getElementById('callTimer').style.display = 'none';
         
+        console.log('📞 Starting call to:', username);
+        
         // Get microphone access
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }, 
+          video: false 
+        });
+        
+        console.log('🎤 Got local stream');
         
         // Create peer connection
         peerConnection = new RTCPeerConnection(iceServers);
         
+        // Monitor connection state
+        peerConnection.onconnectionstatechange = () => {
+          console.log('Connection state:', peerConnection.connectionState);
+          const state = peerConnection.connectionState;
+          
+          if (state === 'connected') {
+            document.getElementById('callStatus').textContent = 'Connected';
+            document.getElementById('callTimer').style.display = 'block';
+            startCallTimer();
+            show('✅ Call connected!');
+          } else if (state === 'failed') {
+            show('❌ Call connection failed');
+            endCall(true);
+          } else if (state === 'disconnected') {
+            show('📞 Call disconnected');
+            endCall(true);
+          }
+        };
+
+        // Monitor ICE connection state
+        peerConnection.oniceconnectionstatechange = () => {
+          console.log('ICE connection state:', peerConnection.iceConnectionState);
+        };
+        
         // Add local stream
         localStream.getTracks().forEach(track => {
+          console.log('Adding local track:', track.kind);
           peerConnection.addTrack(track, localStream);
         });
         
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
+            console.log('🧊 Sending ICE candidate to', username);
             socket.emit('iceCandidate', { to: username, candidate: event.candidate });
+          } else {
+            console.log('✅ All ICE candidates sent');
           }
         };
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-          remoteStream = event.streams[0];
-          const audio = new Audio();
-          audio.srcObject = remoteStream;
-          audio.play();
+          console.log('🎵 Received remote track:', event.track.kind);
+          if (!remoteAudio) {
+            remoteAudio = document.createElement('audio');
+            remoteAudio.autoplay = true;
+            remoteAudio.controls = false;
+            remoteAudio.volume = 1.0;
+            document.body.appendChild(remoteAudio);
+          }
+          remoteAudio.srcObject = event.streams[0];
+          console.log('🔊 Remote audio stream connected');
         };
         
-        // Create offer
-        const offer = await peerConnection.createOffer();
+        // Create and send offer
+        const offer = await peerConnection.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false
+        });
         await peerConnection.setLocalDescription(offer);
+        console.log('📤 Sending offer to', username);
         
-        // Send offer to peer
-        socket.emit('callUser', { to: username, offer });
+        socket.emit('callUser', { to: username, offer: peerConnection.localDescription });
         
       } catch (err) {
-        console.error('Error starting call:', err);
+        console.error('❌ Error starting call:', err);
         show('Microphone access denied or error starting call');
-        endCall();
+        endCall(false);
       }
     }
 
@@ -982,49 +1041,106 @@
         document.getElementById('acceptCallBtn').style.display = 'none';
         document.getElementById('callStatus').textContent = 'Connecting...';
         
+        console.log('✅ Accepting call from:', currentCall);
+        
         // Get microphone access
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }, 
+          video: false 
+        });
+        
+        console.log('🎤 Got local stream');
         
         // Create peer connection
         peerConnection = new RTCPeerConnection(iceServers);
         
+        // Monitor connection state
+        peerConnection.onconnectionstatechange = () => {
+          console.log('Connection state:', peerConnection.connectionState);
+          const state = peerConnection.connectionState;
+          
+          if (state === 'connected') {
+            document.getElementById('callStatus').textContent = 'Connected';
+            document.getElementById('callTimer').style.display = 'block';
+            startCallTimer();
+            show('✅ Call connected!');
+          } else if (state === 'failed') {
+            show('❌ Call connection failed');
+            endCall(true);
+          } else if (state === 'disconnected') {
+            show('📞 Call disconnected');
+            endCall(true);
+          }
+        };
+
+        // Monitor ICE connection state
+        peerConnection.oniceconnectionstatechange = () => {
+          console.log('ICE connection state:', peerConnection.iceConnectionState);
+        };
+        
         // Add local stream
         localStream.getTracks().forEach(track => {
+          console.log('Adding local track:', track.kind);
           peerConnection.addTrack(track, localStream);
         });
         
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
+            console.log('🧊 Sending ICE candidate to', currentCall);
             socket.emit('iceCandidate', { to: currentCall, candidate: event.candidate });
+          } else {
+            console.log('✅ All ICE candidates sent');
           }
         };
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-          remoteStream = event.streams[0];
-          const audio = new Audio();
-          audio.srcObject = remoteStream;
-          audio.play();
+          console.log('🎵 Received remote track:', event.track.kind);
+          if (!remoteAudio) {
+            remoteAudio = document.createElement('audio');
+            remoteAudio.autoplay = true;
+            remoteAudio.controls = false;
+            remoteAudio.volume = 1.0;
+            document.body.appendChild(remoteAudio);
+          }
+          remoteAudio.srcObject = event.streams[0];
+          console.log('🔊 Remote audio stream connected');
         };
         
         // Set remote description from offer
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.pendingOffer));
+        console.log('Remote description set from offer');
+        isConnectionReady = true;
         
-        // Create answer
+        // Process any pending ICE candidates
+        if (pendingIceCandidates.length > 0) {
+          console.log(`Processing ${pendingIceCandidates.length} pending ICE candidates`);
+          for (const candidate of pendingIceCandidates) {
+            try {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+              console.error('Error adding pending ICE candidate:', err);
+            }
+          }
+          pendingIceCandidates = [];
+        }
+        
+        // Create and send answer
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
+        console.log('📤 Sending answer to', currentCall);
         
-        // Send answer to peer
-        socket.emit('answerCall', { to: currentCall, answer });
-        
-        document.getElementById('callStatus').textContent = 'Connected';
-        startCallTimer();
+        socket.emit('answerCall', { to: currentCall, answer: peerConnection.localDescription });
         
       } catch (err) {
-        console.error('Error accepting call:', err);
+        console.error('❌ Error accepting call:', err);
         show('Microphone access denied or error accepting call');
-        endCall();
+        endCall(false);
       }
     }
 
@@ -1039,9 +1155,11 @@
       }, 1000);
     }
 
-    function endCall() {
+    function endCall(notifyOther = true) {
+      console.log('📞 Ending call, notifyOther:', notifyOther);
+      
       // Notify other user
-      if (currentCall) {
+      if (notifyOther && currentCall) {
         socket.emit('endCall', { to: currentCall });
       }
       
@@ -1053,8 +1171,18 @@
       
       // Stop local stream
       if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+        localStream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped track:', track.kind);
+        });
         localStream = null;
+      }
+      
+      // Remove remote audio
+      if (remoteAudio) {
+        remoteAudio.srcObject = null;
+        remoteAudio.remove();
+        remoteAudio = null;
       }
       
       // Clear timer
@@ -1063,10 +1191,14 @@
         callTimer = null;
       }
       
-      // Reset UI
+      // Reset state
       document.getElementById('callUI').style.display = 'none';
       currentCall = null;
       callStartTime = null;
+      pendingIceCandidates = [];
+      isConnectionReady = false;
+      
+      console.log('✅ Call ended and cleaned up');
     }
 
     function loadSettings() {
@@ -1117,7 +1249,7 @@
       document.getElementById('logoutBtn').onclick = logout;
       document.getElementById('deleteAccountBtn').onclick = deleteAccount;
       document.getElementById('acceptCallBtn').onclick = acceptCall;
-      document.getElementById('endCallBtn').onclick = endCall;
+      document.getElementById('endCallBtn').onclick = () => endCall(true);
       els.clearChatBtn.onclick = clearChat;
       els.clearDmBtn.onclick = clearChat;
       els.clearGlobalBtn.onclick = clearChat;
@@ -1125,4 +1257,3 @@
   </script>
 </body>
 </html>
-
