@@ -525,19 +525,25 @@
 
       // Voice calling events
       socket.on('incomingCall', async ({ from, offer }) => {
+        console.log('Incoming call from:', from);
         currentCall = from;
         document.getElementById('callUser').textContent = from;
-        document.getElementById('callStatus').textContent = 'Incoming Call';
+        document.getElementById('callStatus').textContent = `Incoming Call from ${from}`;
         document.getElementById('acceptCallBtn').style.display = 'block';
         document.getElementById('callUI').style.display = 'block';
         document.getElementById('callTimer').style.display = 'none';
         
         // Store the offer for when user accepts
         window.pendingOffer = offer;
+        
+        // Play ringtone sound (optional)
+        show(`📞 Incoming call from ${from}!`);
       });
 
       socket.on('callAnswered', async ({ from, answer }) => {
+        console.log('Call answered by:', from);
         document.getElementById('callStatus').textContent = 'Connected';
+        document.getElementById('callTimer').style.display = 'block';
         startCallTimer();
         if (peerConnection) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
@@ -545,14 +551,20 @@
       });
 
       socket.on('iceCandidate', async ({ from, candidate }) => {
+        console.log('Received ICE candidate from:', from);
         if (peerConnection && candidate) {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error('Error adding ICE candidate:', err);
+          }
         }
       });
 
-      socket.on('callEnded', () => {
-        endCall();
-        show('Call ended');
+      socket.on('callEnded', ({ from }) => {
+        console.log('Call ended by:', from);
+        endCall(false); // false = don't notify other user (they already know)
+        show(`Call with ${from} ended`);
       });
 
       loadSettings();
@@ -1104,6 +1116,8 @@
       document.getElementById('saveSettingsBtn').onclick = saveSettings;
       document.getElementById('logoutBtn').onclick = logout;
       document.getElementById('deleteAccountBtn').onclick = deleteAccount;
+      document.getElementById('acceptCallBtn').onclick = acceptCall;
+      document.getElementById('endCallBtn').onclick = endCall;
       els.clearChatBtn.onclick = clearChat;
       els.clearDmBtn.onclick = clearChat;
       els.clearGlobalBtn.onclick = clearChat;
