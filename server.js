@@ -11,7 +11,9 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Database connection
@@ -161,6 +163,16 @@ app.post('/api/login', async (req, res) => {
 
 // Socket.io - Real-time communication
 const onlineUsers = {};
+
+// Helper function to find user socket
+function findUserSocket(username) {
+  for (const [id, socket] of io.sockets.sockets) {
+    if (socket.username === username) {
+      return socket;
+    }
+  }
+  return null;
+}
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -335,12 +347,9 @@ io.on('connection', (socket) => {
         [msg.user, to, msg.text, new Date()]
       );
       
-      // Find recipient's socket and send
-      for (const [id, sock] of io.sockets.sockets) {
-        if (sock.username === to) {
-          sock.emit('dm', { from: msg.user, msg });
-          break;
-        }
+      const recipientSocket = findUserSocket(to);
+      if (recipientSocket) {
+        recipientSocket.emit('dm', { from: msg.user, msg });
       }
     } catch (err) {
       console.error('Error sending DM:', err);
@@ -362,14 +371,12 @@ io.on('connection', (socket) => {
 
   socket.on('friendRequest', async ({ to }) => {
     try {
-      // Check if user exists
       const userExists = await pool.query('SELECT username FROM users WHERE username = $1', [to]);
       if (userExists.rows.length === 0) {
         socket.emit('friendError', { message: 'User not found' });
         return;
       }
 
-      // Check if already friends
       const existing = await pool.query(
         'SELECT * FROM friends WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)',
         [socket.username, to]
@@ -385,12 +392,9 @@ io.on('connection', (socket) => {
         [socket.username, to, 'pending']
       );
       
-      // Notify recipient if online
-      for (const [id, sock] of io.sockets.sockets) {
-        if (sock.username === to) {
-          sock.emit('friendRequest', { from: socket.username });
-          break;
-        }
+      const recipientSocket = findUserSocket(to);
+      if (recipientSocket) {
+        recipientSocket.emit('friendRequest', { from: socket.username });
       }
       
       socket.emit('friendRequestSent', { to });
@@ -403,10 +407,7 @@ io.on('connection', (socket) => {
   socket.on('acceptFriend', async ({ to }) => {
     try {
       console.log(`${socket.username} is accepting friend request from ${to}`);
-      console.log(`Looking for socket connection for user: ${to}`);
-      console.log(`All connected sockets:`, Array.from(io.sockets.sockets.entries()).map(([id, s]) => ({ id, username: s.username })));
       
-      // Update the friend status to 'accepted' for both directions
       await pool.query(
         'UPDATE friends SET status = $1 WHERE (user1 = $2 AND user2 = $3) OR (user1 = $3 AND user2 = $2)',
         ['accepted', to, socket.username]
@@ -414,23 +415,14 @@ io.on('connection', (socket) => {
       
       console.log(`Friend status updated in database`);
       
-      // Notify the person who SENT the request (the 'to' person)
-      let notified = false;
-      for (const [id, sock] of io.sockets.sockets) {
-        console.log(`Checking socket ${id}: username = ${sock.username}`);
-        if (sock.username === to) {
-          console.log(`FOUND! Sending acceptFriend event to ${to} via socket ${id}`);
-          sock.emit('acceptFriend', { from: socket.username });
-          notified = true;
-          break;
-        }
+      const recipientSocket = findUserSocket(to);
+      if (recipientSocket) {
+        console.log(`FOUND! Sending acceptFriend event to ${to}`);
+        recipientSocket.emit('acceptFriend', { from: socket.username });
+      } else {
+        console.log(`${to} is not currently online`);
       }
       
-      if (!notified) {
-        console.log(`ERROR: ${to} is not currently online or socket not found`);
-      }
-      
-      // Confirm to the person who accepted
       socket.emit('friendAccepted', { friend: to });
       console.log(`Sent friendAccepted confirmation to ${socket.username}`);
     } catch (err) {
@@ -442,7 +434,6 @@ io.on('connection', (socket) => {
     try {
       console.log(`${socket.username} is removing friend ${username}`);
       
-      // Delete from database
       await pool.query(
         'DELETE FROM friends WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)',
         [socket.username, username]
@@ -450,12 +441,9 @@ io.on('connection', (socket) => {
       
       console.log(`Friend removed from database`);
       
-      // Notify the other person if they're online
-      for (const [id, sock] of io.sockets.sockets) {
-        if (sock.username === username) {
-          sock.emit('friendRemoved', { from: socket.username });
-          break;
-        }
+      const recipientSocket = findUserSocket(username);
+      if (recipientSocket) {
+        recipientSocket.emit('friendRemoved', { from: socket.username });
       }
       
       socket.emit('friendRemovedConfirm', { username });
@@ -469,7 +457,6 @@ io.on('connection', (socket) => {
       const username = socket.username;
       console.log(`Deleting account: ${username}`);
       
-      // Delete all user data
       await pool.query('DELETE FROM direct_messages WHERE from_user = $1 OR to_user = $1', [username]);
       await pool.query('DELETE FROM messages WHERE username = $1', [username]);
       await pool.query('DELETE FROM global_messages WHERE username = $1', [username]);
@@ -487,48 +474,52 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Voice calling WebRTC signaling
+  // FIXED Voice calling WebRTC signaling
   socket.on('callUser', ({ to, offer }) => {
-    console.log(`${socket.username} is calling ${to}`);
-    for (const [id, sock] of io.sockets.sockets) {
-      if (sock.username === to) {
-        sock.emit('incomingCall', { from: socket.username, offer });
-        break;
-      }
+    console.log(`📞 ${socket.username} is calling ${to}`);
+    const recipientSocket = findUserSocket(to);
+    if (recipientSocket) {
+      console.log(`✅ Found ${to}, sending call offer`);
+      recipientSocket.emit('incomingCall', { from: socket.username, offer });
+    } else {
+      console.log(`❌ ${to} is not online`);
+      socket.emit('callError', { message: 'User is not online' });
     }
   });
 
   socket.on('answerCall', ({ to, answer }) => {
-    console.log(`${socket.username} answered call from ${to}`);
-    for (const [id, sock] of io.sockets.sockets) {
-      if (sock.username === to) {
-        sock.emit('callAnswered', { from: socket.username, answer });
-        break;
-      }
+    console.log(`✅ ${socket.username} answered call from ${to}`);
+    const recipientSocket = findUserSocket(to);
+    if (recipientSocket) {
+      console.log(`✅ Found ${to}, sending call answer`);
+      recipientSocket.emit('callAnswered', { from: socket.username, answer });
+    } else {
+      console.log(`❌ ${to} is no longer online`);
+      socket.emit('callError', { message: 'User disconnected' });
     }
   });
 
   socket.on('iceCandidate', ({ to, candidate }) => {
-    for (const [id, sock] of io.sockets.sockets) {
-      if (sock.username === to) {
-        sock.emit('iceCandidate', { from: socket.username, candidate });
-        break;
-      }
+    console.log(`🧊 Forwarding ICE candidate from ${socket.username} to ${to}`);
+    const recipientSocket = findUserSocket(to);
+    if (recipientSocket) {
+      recipientSocket.emit('iceCandidate', { from: socket.username, candidate });
+    } else {
+      console.log(`❌ ${to} is not online to receive ICE candidate`);
     }
   });
 
   socket.on('endCall', ({ to }) => {
-    console.log(`${socket.username} ended call with ${to}`);
-    for (const [id, sock] of io.sockets.sockets) {
-      if (sock.username === to) {
-        sock.emit('callEnded', { from: socket.username });
-        break;
-      }
+    console.log(`📞 ${socket.username} ended call with ${to}`);
+    const recipientSocket = findUserSocket(to);
+    if (recipientSocket) {
+      recipientSocket.emit('callEnded', { from: socket.username });
     }
   });
 
   socket.on('disconnect', () => {
     if (socket.username) {
+      console.log(`User disconnected: ${socket.username}`);
       delete onlineUsers[socket.username];
       io.emit('users', onlineUsers);
       io.emit('userOffline', { name: socket.username });
