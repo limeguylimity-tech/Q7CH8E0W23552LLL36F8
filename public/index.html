@@ -240,11 +240,37 @@
   <!-- CONNECTION POPUP -->
   <div id="connectionStatus" class="status-connecting" style="display:none;">Connecting...</div>
 
+  <!-- CALL UI -->
+  <div id="callUI" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:32px;border-radius:var(--radius);border:2px solid var(--c1);box-shadow:0 0 40px rgba(0,255,255,.5);z-index:10002;min-width:300px;text-align:center;">
+    <div id="callStatus" style="color:var(--c1);font-size:18px;font-weight:600;margin-bottom:20px;">Calling...</div>
+    <div id="callUser" style="color:var(--text);font-size:16px;margin-bottom:20px;"></div>
+    <div id="callTimer" style="color:#aaa;font-size:14px;margin-bottom:20px;">00:00</div>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button id="acceptCallBtn" class="btn" style="background:var(--online);display:none;">Accept</button>
+      <button id="endCallBtn" class="btn" style="background:#f55;">End Call</button>
+    </div>
+  </div>
+
   <script>
     let socket = null;
     let myName = null, currentServer = null, currentChannel = null, currentDM = null;
     let servers = {}, onlineUsers = {}, friends = {}, points = 0, allServers = {};
     let userData = {};
+
+    // WebRTC voice calling
+    let peerConnection = null;
+    let localStream = null;
+    let remoteStream = null;
+    let currentCall = null;
+    let callTimer = null;
+    let callStartTime = null;
+
+    const iceServers = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
 
     const els = {
       loginScreen: document.getElementById('loginScreen'),
@@ -488,6 +514,47 @@
         }
       });
 
+      socket.on('accountDeleted', () => {
+        alert('Your account has been permanently deleted.');
+        location.reload();
+      });
+
+      socket.on('deleteError', d => {
+        show(d.message);
+      });
+
+      // Voice calling events
+      socket.on('incomingCall', async ({ from, offer }) => {
+        currentCall = from;
+        document.getElementById('callUser').textContent = from;
+        document.getElementById('callStatus').textContent = 'Incoming Call';
+        document.getElementById('acceptCallBtn').style.display = 'block';
+        document.getElementById('callUI').style.display = 'block';
+        document.getElementById('callTimer').style.display = 'none';
+        
+        // Store the offer for when user accepts
+        window.pendingOffer = offer;
+      });
+
+      socket.on('callAnswered', async ({ from, answer }) => {
+        document.getElementById('callStatus').textContent = 'Connected';
+        startCallTimer();
+        if (peerConnection) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+      });
+
+      socket.on('iceCandidate', async ({ from, candidate }) => {
+        if (peerConnection && candidate) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      });
+
+      socket.on('callEnded', () => {
+        endCall();
+        show('Call ended');
+      });
+
       loadSettings();
       updateClock(); 
       setInterval(updateClock, 60000);
@@ -705,10 +772,20 @@
         } else if (status === 'accepted') {
           div.onclick = () => openDM(name);
           
+          const callBtn = document.createElement('button');
+          callBtn.className = 'accept-btn';
+          callBtn.textContent = '📞';
+          callBtn.style.marginLeft = '8px';
+          callBtn.onclick = (e) => {
+            e.stopPropagation();
+            startCall(name);
+          };
+          div.appendChild(callBtn);
+          
           const remove = document.createElement('button');
           remove.className = 'reject-btn';
           remove.textContent = 'Remove';
-          remove.style.marginLeft = 'auto';
+          remove.style.marginLeft = '8px';
           remove.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Remove ${name} from friends?`)) {
@@ -824,6 +901,162 @@
       }
     }
 
+    function deleteAccount() {
+      const username = myName;
+      if (confirm(`⚠️ DELETE ACCOUNT "${username}"?\n\nThis will permanently delete:\n- Your account\n- All your messages\n- All your servers\n- All your friends\n\nThis CANNOT be undone!`)) {
+        if (confirm(`Are you ABSOLUTELY sure? Type your username to confirm.\n\nYour username: ${username}`)) {
+          const confirmName = prompt(`Type "${username}" to confirm deletion:`);
+          if (confirmName === username) {
+            socket.emit('deleteAccount');
+          } else {
+            show('Account deletion cancelled - username did not match');
+          }
+        }
+      }
+    }
+
+    // Voice calling functions
+    async function startCall(username) {
+      try {
+        currentCall = username;
+        document.getElementById('callUser').textContent = username;
+        document.getElementById('callStatus').textContent = 'Calling...';
+        document.getElementById('callUI').style.display = 'block';
+        document.getElementById('acceptCallBtn').style.display = 'none';
+        document.getElementById('callTimer').style.display = 'none';
+        
+        // Get microphone access
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        
+        // Create peer connection
+        peerConnection = new RTCPeerConnection(iceServers);
+        
+        // Add local stream
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('iceCandidate', { to: username, candidate: event.candidate });
+          }
+        };
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+          remoteStream = event.streams[0];
+          const audio = new Audio();
+          audio.srcObject = remoteStream;
+          audio.play();
+        };
+        
+        // Create offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Send offer to peer
+        socket.emit('callUser', { to: username, offer });
+        
+      } catch (err) {
+        console.error('Error starting call:', err);
+        show('Microphone access denied or error starting call');
+        endCall();
+      }
+    }
+
+    async function acceptCall() {
+      try {
+        document.getElementById('acceptCallBtn').style.display = 'none';
+        document.getElementById('callStatus').textContent = 'Connecting...';
+        
+        // Get microphone access
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        
+        // Create peer connection
+        peerConnection = new RTCPeerConnection(iceServers);
+        
+        // Add local stream
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('iceCandidate', { to: currentCall, candidate: event.candidate });
+          }
+        };
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+          remoteStream = event.streams[0];
+          const audio = new Audio();
+          audio.srcObject = remoteStream;
+          audio.play();
+        };
+        
+        // Set remote description from offer
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(window.pendingOffer));
+        
+        // Create answer
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        // Send answer to peer
+        socket.emit('answerCall', { to: currentCall, answer });
+        
+        document.getElementById('callStatus').textContent = 'Connected';
+        startCallTimer();
+        
+      } catch (err) {
+        console.error('Error accepting call:', err);
+        show('Microphone access denied or error accepting call');
+        endCall();
+      }
+    }
+
+    function startCallTimer() {
+      callStartTime = Date.now();
+      document.getElementById('callTimer').style.display = 'block';
+      callTimer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+        const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const seconds = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('callTimer').textContent = `${minutes}:${seconds}`;
+      }, 1000);
+    }
+
+    function endCall() {
+      // Notify other user
+      if (currentCall) {
+        socket.emit('endCall', { to: currentCall });
+      }
+      
+      // Close peer connection
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
+      // Stop local stream
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      
+      // Clear timer
+      if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+      }
+      
+      // Reset UI
+      document.getElementById('callUI').style.display = 'none';
+      currentCall = null;
+      callStartTime = null;
+    }
+
     function loadSettings() {
       document.body.dataset.theme = userData.theme || 'dark';
       els.userName.textContent = myName;
@@ -870,6 +1103,7 @@
       document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
       document.getElementById('saveSettingsBtn').onclick = saveSettings;
       document.getElementById('logoutBtn').onclick = logout;
+      document.getElementById('deleteAccountBtn').onclick = deleteAccount;
       els.clearChatBtn.onclick = clearChat;
       els.clearDmBtn.onclick = clearChat;
       els.clearGlobalBtn.onclick = clearChat;
