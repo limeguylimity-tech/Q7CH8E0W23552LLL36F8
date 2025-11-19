@@ -63,8 +63,6 @@
     .msg{max-width:70%;padding:12px 16px;background:var(--card);border-left:4px solid var(--c1);border-radius:var(--radius);align-self:flex-start;word-wrap:break-word;box-shadow:0 1px 3px rgba(0,0,0,.2);}
     .msg.own{align-self:flex-end;background:#1a1a1a;border-left:none;border-right:4px solid var(--c2);}
     .msg strong{color:var(--c2);}
-    .msg strong{color:var(--c2);cursor:pointer;text-decoration:underline;}
-    .msg strong:hover{color:var(--c1);}
     #inputArea, #globalInputArea{position:sticky;bottom:0;background:rgba(0,0,0,.9);padding:16px;border-top:2px solid var(--c2);gap:12px;align-items:center;backdrop-filter:blur(10px);z-index:1002;display:flex;}
     #msgInput, #dmInput, #globalMsgInput{flex:1;background:var(--card);border:2px solid transparent;color:var(--text);padding:14px 18px;border-radius:12px;outline:none;font-size:16px;min-height:50px;resize:none;transition:var(--transition);}
     #msgInput:focus, #dmInput:focus, #globalMsgInput:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,255,255,.2);}
@@ -243,58 +241,17 @@
   <div id="connectionStatus" class="status-connecting" style="display:none;">Connecting...</div>
 
   <!-- CALL UI -->
-  <div id="callUI" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:32px;border-radius:var(--radius);border:2px solid var(--c1);box-shadow:0 0 40px rgba(0,255,255,.5);z-index:10002;min-width:400px;text-align:center;">
+  <div id="callUI" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);padding:32px;border-radius:var(--radius);border:2px solid var(--c1);box-shadow:0 0 40px rgba(0,255,255,.5);z-index:10002;min-width:300px;text-align:center;">
     <div id="callStatus" style="color:var(--c1);font-size:18px;font-weight:600;margin-bottom:20px;">Calling...</div>
     <div id="callUser" style="color:var(--text);font-size:16px;margin-bottom:20px;"></div>
     <div id="callTimer" style="color:#aaa;font-size:14px;margin-bottom:20px;">00:00</div>
-    <video id="localVideo" autoplay muted playsinline style="width:180px;height:135px;background:#000;border-radius:8px;margin:10px;display:none;"></video>
-    <video id="remoteVideo" autoplay playsinline style="width:180px;height:135px;background:#000;border-radius:8px;margin:10px;display:none;"></video>
-    <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;">
-      <button id="toggleVideoBtn" class="btn-small" style="display:none;">📹 Video</button>
-      <button id="toggleAudioBtn" class="btn-small" style="display:none;">🎤 Mute</button>
+    <div style="display:flex;gap:12px;justify-content:center;">
       <button id="acceptCallBtn" class="btn" style="background:var(--online);display:none;">Accept</button>
       <button id="endCallBtn" class="btn" style="background:#f55;">End Call</button>
     </div>
   </div>
 
-  <!-- USER PROFILE MODAL -->
-  <div id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10003;display:none;align-items:center;justify-content:center;" onclick="closeProfile(event)">
-    <div style="background:var(--card);padding:32px;border-radius:var(--radius);border:2px solid var(--c1);box-shadow:0 0 40px rgba(0,255,255,.5);min-width:400px;max-width:500px;" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
-        <img id="profileAvatar" src="" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--c1);object-fit:cover;">
-        <div>
-          <h2 id="profileName" style="color:var(--c1);margin-bottom:5px;"></h2>
-          <span id="profileStatus" style="color:var(--online);font-size:14px;"></span>
-        </div>
-      </div>
-      <div id="profileBio" style="color:var(--text);margin-bottom:15px;padding:15px;background:var(--accent);border-radius:8px;min-height:60px;"></div>
-      <div style="display:flex;gap:10px;color:#aaa;font-size:13px;margin-bottom:20px;">
-        <span>⭐ <span id="profilePoints">0</span> points</span>
-        <span>📅 Joined <span id="profileJoined"></span></span>
-      </div>
-      <div style="display:flex;gap:10px;">
-        <button class="btn-small" onclick="closeProfile()">Close</button>
-        <button id="profileDmBtn" class="btn-small" style="background:var(--c2);">Send Message</button>
-        <button id="profileCallBtn" class="btn-small" style="background:var(--online);">📞 Call</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ADMIN CONSOLE (Press Ctrl+Shift+A) -->
-  <div id="adminConsole" style="display:none;position:fixed;bottom:20px;right:20px;background:var(--card);padding:20px;border-radius:var(--radius);border:2px solid #f55;box-shadow:0 0 40px rgba(255,85,85,.5);z-index:10004;width:350px;">
-    <h3 style="color:#f55;margin-bottom:15px;">🔒 Admin Console</h3>
-    <input id="adminPassword" type="password" class="input" placeholder="Admin Password" style="margin-bottom:10px;">
-    <input id="banIpInput" class="input" placeholder="IP Address to ban" style="margin-bottom:10px;">
-    <input id="banReasonInput" class="input" placeholder="Reason" style="margin-bottom:10px;">
-    <div style="display:flex;gap:8px;">
-      <button class="btn-small" style="background:#f55;" onclick="banIP()">Ban IP</button>
-      <button class="btn-small" style="background:var(--online);" onclick="unbanIP()">Unban IP</button>
-      <button class="btn-small" onclick="closeAdmin()">Close</button>
-    </div>
-    <div id="adminResult" style="margin-top:10px;font-size:12px;color:#aaa;"></div>
-  </div>
-
-  <!-- SERVER SETTINGS MODAL -->
+  <script>
     let socket = null;
     let myName = null, currentServer = null, currentChannel = null, currentDM = null;
     let servers = {}, onlineUsers = {}, friends = {}, points = 0, allServers = {};
@@ -307,8 +264,6 @@
     let currentCall = null;
     let callTimer = null;
     let callStartTime = null;
-    let videoEnabled = false;
-    let audioEnabled = true;
 
     const iceServers = {
       iceServers: [
@@ -316,14 +271,6 @@
         { urls: 'stun:stun1.l.google.com:19302' }
       ]
     };
-
-    // Admin console toggle (Ctrl+Shift+A)
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-        const console = document.getElementById('adminConsole');
-        console.style.display = console.style.display === 'none' ? 'block' : 'none';
-      }
-    });
 
     const els = {
       loginScreen: document.getElementById('loginScreen'),
@@ -577,24 +524,20 @@
       });
 
       // Voice calling events
-      socket.on('incomingCall', async ({ from, offer, video }) => {
+      socket.on('incomingCall', async ({ from, offer }) => {
         console.log('Incoming call from:', from);
         currentCall = from;
-        videoEnabled = video || false;
-        
         document.getElementById('callUser').textContent = from;
-        document.getElementById('callStatus').textContent = `Incoming ${video ? 'Video' : 'Voice'} Call from ${from}`;
+        document.getElementById('callStatus').textContent = `Incoming Call from ${from}`;
         document.getElementById('acceptCallBtn').style.display = 'block';
         document.getElementById('callUI').style.display = 'block';
         document.getElementById('callTimer').style.display = 'none';
-        document.getElementById('toggleVideoBtn').style.display = 'none';
-        document.getElementById('toggleAudioBtn').style.display = 'none';
         
         // Store the offer for when user accepts
         window.pendingOffer = offer;
         
         // Play ringtone sound (optional)
-        show(`📞 Incoming ${video ? 'video' : 'voice'} call from ${from}!`);
+        show(`📞 Incoming call from ${from}!`);
       });
 
       socket.on('callAnswered', async ({ from, answer }) => {
@@ -653,12 +596,6 @@
         div.dataset.id = id;
         div.dataset.name = s.name;
         div.onclick = () => switchServer(id);
-        div.oncontextmenu = (e) => {
-          e.preventDefault();
-          if (s.owner === myName) {
-            openServerSettings(id);
-          }
-        };
         list.appendChild(div);
       });
       document.getElementById('addServerBtn').onclick = createServer;
@@ -749,7 +686,7 @@
       const own = msg.user === myName;
       const m = document.createElement('div');
       m.className = `msg ${own ? 'own' : ''}`;
-      m.innerHTML = `<strong onclick="showProfile('${msg.user}')">[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
+      m.innerHTML = `<strong>[${msg.time}] ${msg.user}:</strong> ${msg.text}`;
       container.appendChild(m);
       container.scrollTop = container.scrollHeight;
     }
@@ -853,19 +790,9 @@
           callBtn.style.marginLeft = '8px';
           callBtn.onclick = (e) => {
             e.stopPropagation();
-            startCall(name, false);
+            startCall(name);
           };
           div.appendChild(callBtn);
-          
-          const videoBtn = document.createElement('button');
-          videoBtn.className = 'accept-btn';
-          videoBtn.textContent = '📹';
-          videoBtn.style.marginLeft = '4px';
-          videoBtn.onclick = (e) => {
-            e.stopPropagation();
-            startCall(name, true);
-          };
-          div.appendChild(videoBtn);
           
           const remove = document.createElement('button');
           remove.className = 'reject-btn';
@@ -1000,185 +927,21 @@
       }
     }
 
-    // User Profile Functions
-    async function showProfile(username) {
-      try {
-        const res = await fetch(`/api/user/${username}`);
-        const user = await res.json();
-        
-        if (user.error) return show(user.error);
-        
-        document.getElementById('profileName').textContent = user.username;
-        document.getElementById('profileAvatar').src = user.avatar || 'https://i.imgur.com/6VBx3io.png';
-        document.getElementById('profileStatus').textContent = user.status || 'online';
-        document.getElementById('profileBio').textContent = user.bio || 'No bio set.';
-        document.getElementById('profilePoints').textContent = user.points || 0;
-        document.getElementById('profileJoined').textContent = new Date(user.created_at).toLocaleDateString();
-        
-        document.getElementById('profileModal').style.display = 'flex';
-        
-        // Set up buttons
-        document.getElementById('profileDmBtn').onclick = () => {
-          closeProfile();
-          openDM(username);
-        };
-        
-        document.getElementById('profileCallBtn').onclick = () => {
-          closeProfile();
-          startCall(username);
-        };
-        
-      } catch (err) {
-        show('Failed to load profile');
-      }
-    }
-
-    function closeProfile(event) {
-      if (!event || event.target.id === 'profileModal') {
-        document.getElementById('profileModal').style.display = 'none';
-      }
-    }
-
-    // Server Settings Functions
-    function openServerSettings(serverId) {
-      if (!servers[serverId] || servers[serverId].owner !== myName) {
-        return show('Only server owner can edit settings');
-      }
-      
-      currentServer = serverId;
-      const s = servers[serverId];
-      
-      document.getElementById('serverNameInput').value = s.name;
-      document.getElementById('serverDescInput').value = s.description || '';
-      document.getElementById('serverIconInput').value = s.icon || '';
-      document.getElementById('serverSettingsModal').style.display = 'flex';
-    }
-
-    function closeServerSettings(event) {
-      if (!event || event.target.id === 'serverSettingsModal') {
-        document.getElementById('serverSettingsModal').style.display = 'none';
-      }
-    }
-
-    function saveServerSettings() {
-      const settings = {
-        name: document.getElementById('serverNameInput').value.trim(),
-        description: document.getElementById('serverDescInput').value.trim(),
-        icon: document.getElementById('serverIconInput').value.trim()
-      };
-      
-      if (!settings.name) return show('Server name required');
-      
-      socket.emit('updateServerSettings', { serverId: currentServer, settings });
-      closeServerSettings();
-      show('Settings saved!');
-    }
-
-    // Admin Functions
-    async function banIP() {
-      const password = document.getElementById('adminPassword').value;
-      const ip = document.getElementById('banIpInput').value.trim();
-      const reason = document.getElementById('banReasonInput').value.trim();
-      
-      if (!password || !ip) {
-        document.getElementById('adminResult').textContent = 'Password and IP required';
-        document.getElementById('adminResult').style.color = '#f55';
-        return;
-      }
-      
-      try {
-        const res = await fetch('/api/admin/ban-ip', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, ip, reason, bannedBy: myName })
-        });
-        
-        const data = await res.json();
-        
-        if (data.error) {
-          document.getElementById('adminResult').textContent = data.error;
-          document.getElementById('adminResult').style.color = '#f55';
-        } else {
-          document.getElementById('adminResult').textContent = data.message;
-          document.getElementById('adminResult').style.color = 'var(--online)';
-          document.getElementById('banIpInput').value = '';
-          document.getElementById('banReasonInput').value = '';
-        }
-      } catch (err) {
-        document.getElementById('adminResult').textContent = 'Request failed';
-        document.getElementById('adminResult').style.color = '#f55';
-      }
-    }
-
-    async function unbanIP() {
-      const password = document.getElementById('adminPassword').value;
-      const ip = document.getElementById('banIpInput').value.trim();
-      
-      if (!password || !ip) {
-        document.getElementById('adminResult').textContent = 'Password and IP required';
-        document.getElementById('adminResult').style.color = '#f55';
-        return;
-      }
-      
-      try {
-        const res = await fetch('/api/admin/unban-ip', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, ip })
-        });
-        
-        const data = await res.json();
-        
-        if (data.error) {
-          document.getElementById('adminResult').textContent = data.error;
-          document.getElementById('adminResult').style.color = '#f55';
-        } else {
-          document.getElementById('adminResult').textContent = data.message;
-          document.getElementById('adminResult').style.color = 'var(--online)';
-          document.getElementById('banIpInput').value = '';
-        }
-      } catch (err) {
-        document.getElementById('adminResult').textContent = 'Request failed';
-        document.getElementById('adminResult').style.color = '#f55';
-      }
-    }
-
-    function closeAdmin() {
-      document.getElementById('adminConsole').style.display = 'none';
-    }
-
     // Voice calling functions
-    async function startCall(username, includeVideo = false) {
+    async function startCall(username) {
       try {
-        console.log('Starting call to:', username);
         currentCall = username;
-        videoEnabled = includeVideo;
-        audioEnabled = true;
-        
         document.getElementById('callUser').textContent = username;
-        document.getElementById('callStatus').textContent = `Calling ${username}...`;
+        document.getElementById('callStatus').textContent = 'Calling...';
         document.getElementById('callUI').style.display = 'block';
         document.getElementById('acceptCallBtn').style.display = 'none';
         document.getElementById('callTimer').style.display = 'none';
-        document.getElementById('toggleVideoBtn').style.display = 'none';
-        document.getElementById('toggleAudioBtn').style.display = 'none';
         
-        // Get microphone/camera access
-        console.log('Requesting media access...');
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true, 
-          video: includeVideo 
-        });
-        console.log('Media access granted');
-        
-        if (includeVideo) {
-          document.getElementById('localVideo').srcObject = localStream;
-          document.getElementById('localVideo').style.display = 'block';
-        }
+        // Get microphone access
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
         // Create peer connection
         peerConnection = new RTCPeerConnection(iceServers);
-        console.log('Peer connection created');
         
         // Add local stream
         localStream.getTracks().forEach(track => {
@@ -1188,68 +951,42 @@
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log('Sending ICE candidate');
             socket.emit('iceCandidate', { to: username, candidate: event.candidate });
           }
         };
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-          console.log('Received remote track');
           remoteStream = event.streams[0];
-          
-          const hasVideo = remoteStream.getVideoTracks().length > 0;
-          
-          if (hasVideo) {
-            document.getElementById('remoteVideo').srcObject = remoteStream;
-            document.getElementById('remoteVideo').style.display = 'block';
-          } else {
-            const audio = new Audio();
-            audio.srcObject = remoteStream;
-            audio.autoplay = true;
-            audio.play().catch(err => console.error('Error playing audio:', err));
-          }
+          const audio = new Audio();
+          audio.srcObject = remoteStream;
+          audio.play();
         };
         
         // Create offer
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        console.log('Sending call offer');
         
         // Send offer to peer
-        socket.emit('callUser', { to: username, offer, video: includeVideo });
+        socket.emit('callUser', { to: username, offer });
         
       } catch (err) {
         console.error('Error starting call:', err);
-        alert('Error: ' + err.message + '\n\nMake sure you allow microphone/camera access!');
-        endCall(false);
+        show('Microphone access denied or error starting call');
+        endCall();
       }
     }
 
     async function acceptCall() {
       try {
-        console.log('Accepting call from:', currentCall);
         document.getElementById('acceptCallBtn').style.display = 'none';
         document.getElementById('callStatus').textContent = 'Connecting...';
         
-        audioEnabled = true;
-        
-        // Get microphone/camera access
-        console.log('Requesting media access...');
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true, 
-          video: videoEnabled 
-        });
-        console.log('Media access granted');
-        
-        if (videoEnabled) {
-          document.getElementById('localVideo').srcObject = localStream;
-          document.getElementById('localVideo').style.display = 'block';
-        }
+        // Get microphone access
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
         // Create peer connection
         peerConnection = new RTCPeerConnection(iceServers);
-        console.log('Peer connection created');
         
         // Add local stream
         localStream.getTracks().forEach(track => {
@@ -1259,74 +996,35 @@
         // Handle ICE candidates
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log('Sending ICE candidate');
             socket.emit('iceCandidate', { to: currentCall, candidate: event.candidate });
           }
         };
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-          console.log('Received remote track');
           remoteStream = event.streams[0];
-          
-          const hasVideo = remoteStream.getVideoTracks().length > 0;
-          
-          if (hasVideo) {
-            document.getElementById('remoteVideo').srcObject = remoteStream;
-            document.getElementById('remoteVideo').style.display = 'block';
-          } else {
-            const audio = new Audio();
-            audio.srcObject = remoteStream;
-            audio.autoplay = true;
-            audio.play().catch(err => console.error('Error playing audio:', err));
-          }
+          const audio = new Audio();
+          audio.srcObject = remoteStream;
+          audio.play();
         };
         
         // Set remote description from offer
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.pendingOffer));
-        console.log('Set remote description');
         
         // Create answer
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        console.log('Created answer');
         
         // Send answer to peer
         socket.emit('answerCall', { to: currentCall, answer });
-        console.log('Sent answer');
         
         document.getElementById('callStatus').textContent = 'Connected';
-        document.getElementById('callTimer').style.display = 'block';
-        document.getElementById('toggleVideoBtn').style.display = 'inline-block';
-        document.getElementById('toggleAudioBtn').style.display = 'inline-block';
         startCallTimer();
         
       } catch (err) {
         console.error('Error accepting call:', err);
-        alert('Error: ' + err.message + '\n\nMake sure you allow microphone/camera access!');
-        endCall(false);
-      }
-    }
-
-    function toggleVideo() {
-      if (!localStream) return;
-      
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        videoEnabled = videoTrack.enabled;
-        document.getElementById('toggleVideoBtn').textContent = videoEnabled ? '📹 Video' : '📹 Video Off';
-      }
-    }
-
-    function toggleAudio() {
-      if (!localStream) return;
-      
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        audioEnabled = audioTrack.enabled;
-        document.getElementById('toggleAudioBtn').textContent = audioEnabled ? '🎤 Mute' : '🎤 Unmute';
+        show('Microphone access denied or error accepting call');
+        endCall();
       }
     }
 
@@ -1341,11 +1039,9 @@
       }, 1000);
     }
 
-    function endCall(notifyOther = true) {
-      console.log('Ending call, notify other:', notifyOther);
-      
-      // Notify other user if requested
-      if (notifyOther && currentCall) {
+    function endCall() {
+      // Notify other user
+      if (currentCall) {
         socket.emit('endCall', { to: currentCall });
       }
       
@@ -1353,22 +1049,12 @@
       if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
-        console.log('Peer connection closed');
       }
       
       // Stop local stream
       if (localStream) {
-        localStream.getTracks().forEach(track => {
-          track.stop();
-          console.log('Stopped track:', track.kind);
-        });
+        localStream.getTracks().forEach(track => track.stop());
         localStream = null;
-      }
-      
-      // Stop remote audio
-      if (remoteStream) {
-        remoteStream.getTracks().forEach(track => track.stop());
-        remoteStream = null;
       }
       
       // Clear timer
@@ -1379,21 +1065,8 @@
       
       // Reset UI
       document.getElementById('callUI').style.display = 'none';
-      document.getElementById('callTimer').textContent = '00:00';
-      document.getElementById('localVideo').style.display = 'none';
-      document.getElementById('remoteVideo').style.display = 'none';
-      document.getElementById('localVideo').srcObject = null;
-      document.getElementById('remoteVideo').srcObject = null;
-      document.getElementById('toggleVideoBtn').style.display = 'none';
-      document.getElementById('toggleAudioBtn').style.display = 'none';
-      
       currentCall = null;
       callStartTime = null;
-      window.pendingOffer = null;
-      videoEnabled = false;
-      audioEnabled = true;
-      
-      console.log('Call ended and cleaned up');
     }
 
     function loadSettings() {
@@ -1445,8 +1118,6 @@
       document.getElementById('deleteAccountBtn').onclick = deleteAccount;
       document.getElementById('acceptCallBtn').onclick = acceptCall;
       document.getElementById('endCallBtn').onclick = endCall;
-      document.getElementById('toggleVideoBtn').onclick = toggleVideo;
-      document.getElementById('toggleAudioBtn').onclick = toggleAudio;
       els.clearChatBtn.onclick = clearChat;
       els.clearDmBtn.onclick = clearChat;
       els.clearGlobalBtn.onclick = clearChat;
