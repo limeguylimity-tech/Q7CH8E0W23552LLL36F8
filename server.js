@@ -492,7 +492,6 @@ io.on('connection', (socket) => {
     console.log(`${socket.username} is calling ${to}`);
     for (const [id, sock] of io.sockets.sockets) {
       if (sock.username === to) {
-        console.log(`Sending call to ${to} via socket ${id}`);
         sock.emit('incomingCall', { from: socket.username, offer });
         break;
       }
@@ -503,7 +502,6 @@ io.on('connection', (socket) => {
     console.log(`${socket.username} answered call from ${to}`);
     for (const [id, sock] of io.sockets.sockets) {
       if (sock.username === to) {
-        console.log(`Sending answer to ${to} via socket ${id}`);
         sock.emit('callAnswered', { from: socket.username, answer });
         break;
       }
@@ -523,7 +521,6 @@ io.on('connection', (socket) => {
     console.log(`${socket.username} ended call with ${to}`);
     for (const [id, sock] of io.sockets.sockets) {
       if (sock.username === to) {
-        console.log(`Notifying ${to} that call ended`);
         sock.emit('callEnded', { from: socket.username });
         break;
       }
@@ -535,7 +532,6 @@ io.on('connection', (socket) => {
       delete onlineUsers[socket.username];
       io.emit('users', onlineUsers);
       io.emit('userOffline', { name: socket.username });
-      console.log(`User ${socket.username} disconnected`);
     }
   });
 });
