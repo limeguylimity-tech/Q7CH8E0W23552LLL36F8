@@ -676,6 +676,11 @@
         
         console.log('✅ Accepting call from:', currentCall);
         
+        // Validate we have a pending offer
+        if (!window.pendingOffer) {
+          throw new Error('No pending offer found');
+        }
+        
         // Get microphone
         localStream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
@@ -691,12 +696,6 @@
         // Create peer connection
         peerConnection = new RTCPeerConnection(iceConfig);
         console.log('🔗 Peer connection created');
-        
-        // Add tracks
-        localStream.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStream);
-          console.log('➕ Added track:', track.kind);
-        });
         
         // Handle remote tracks
         peerConnection.ontrack = (event) => {
@@ -738,12 +737,20 @@
           console.log('Connection state:', peerConnection.connectionState);
         };
         
-        // Set remote description from offer
+        // CRITICAL: Set remote description FIRST before adding tracks
+        console.log('Setting remote description from offer...');
         await peerConnection.setRemoteDescription(new RTCSessionDescription(window.pendingOffer));
-        console.log('✅ Remote description set');
+        console.log('✅ Remote description set, state:', peerConnection.signalingState);
         isRemoteDescriptionSet = true;
         
+        // NOW add local tracks AFTER remote description is set
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+          console.log('➕ Added track:', track.kind);
+        });
+        
         // Process queued ICE candidates
+        console.log('Processing', pendingIceCandidates.length, 'queued candidates');
         while (pendingIceCandidates.length > 0) {
           const candidate = pendingIceCandidates.shift();
           try {
@@ -755,6 +762,7 @@
         }
         
         // Create and send answer
+        console.log('Creating answer, signaling state:', peerConnection.signalingState);
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         console.log('📤 Sending answer');
