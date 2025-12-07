@@ -1,0 +1,296 @@
+/* Mobile Support for GHOSTCORD */
+/* Add this line to your index.html head: <link rel="stylesheet" href="mobile.css"> */
+
+/* Mobile Menu Buttons */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-channels-btn {
+  left: 20px;
+  background: var(--c1);
+  color: #000;
+}
+
+.mobile-servers-btn {
+  right: 20px;
+  background: var(--c2);
+  color: #000;
+}
+
+/* Tablet and Mobile */
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  /* Make tabs scrollable */
+  #tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #tabs::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  #tabs::-webkit-scrollbar-thumb {
+    background: var(--c1);
+    border-radius: 10px;
+  }
+
+  /* Server sidebar becomes slide-out */
+  #servers {
+    position: fixed;
+    left: -80px;
+    top: 90px;
+    bottom: 0;
+    width: 72px;
+    transition: left 0.3s ease;
+    z-index: 999;
+  }
+
+  #servers.show {
+    left: 0;
+  }
+
+  /* Channels sidebar becomes slide-out */
+  #channels {
+    position: fixed;
+    left: -250px;
+    top: 90px;
+    bottom: 0;
+    width: 240px;
+    transition: left 0.3s ease;
+    z-index: 998;
+  }
+
+  #channels.show {
+    left: 0;
+  }
+
+  /* Main content takes full width */
+  #main {
+    width: 100%;
+  }
+
+  /* Chat area adjustments */
+  #chatArea {
+    width: 100%;
+  }
+
+  /* Input adjustments for mobile */
+  #inputArea, #globalInputArea {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  #msgInput, #dmInput, #globalMsgInput {
+    font-size: 16px;
+    padding: 12px;
+    min-height: 44px;
+  }
+
+  #sendBtn, #dmSendBtn, #globalSendBtn {
+    min-width: 60px;
+    padding: 0 16px;
+    height: 44px;
+  }
+
+  /* Top bar mobile adjustments */
+  #topBar {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  #userAvatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  #userName {
+    font-size: 12px;
+  }
+
+  #userStatus {
+    font-size: 9px;
+  }
+
+  #clock {
+    font-size: 11px;
+  }
+
+  #playersOnline {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  /* Tab adjustments */
+  .tab {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  /* Modal adjustments */
+  #loginBox {
+    width: 90%;
+    max-width: 340px;
+    padding: 24px;
+  }
+
+  #callUI {
+    width: 90%;
+    min-width: auto;
+    padding: 24px;
+  }
+
+  #profileModal > div,
+  #serverSettingsModal > div {
+    width: 90%;
+    min-width: auto;
+    max-width: 400px;
+  }
+
+  #adminConsole {
+    width: 90%;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+  }
+
+  /* Message bubbles */
+  .msg {
+    max-width: 85%;
+    font-size: 14px;
+  }
+
+  /* Add padding to content to avoid button overlap */
+  #dmView, #friendsView, #newsView, #shopView, 
+  #gamesView, #settingsView, #globalView, #serverListView {
+    padding-bottom: 100px;
+  }
+
+  #messages, #globalMessages, #dmMessages {
+    padding-bottom: 20px;
+  }
+}
+
+/* Small Mobile Phones */
+@media (max-width: 480px) {
+  /* Hide clock on very small screens */
+  #topBarCenter {
+    display: none;
+  }
+
+  #topBarLeft {
+    flex: 1;
+    min-width: 0;
+  }
+
+  #topBarRight {
+    flex-shrink: 0;
+  }
+
+  #userInfo {
+    padding: 3px 8px;
+  }
+
+  #userAvatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  #userName {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+
+  #playersOnline {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .tab {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  #loginBox {
+    padding: 20px;
+  }
+
+  .input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .msg {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  /* Make buttons easier to tap */
+  .btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .mobile-menu-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  #servers {
+    top: 60px;
+  }
+
+  #channels {
+    top: 60px;
+  }
+}
+
+/* Touch-specific improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Make all interactive elements easier to tap */
+  .chan, .srv, .friend, .dm-user, .tab {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Larger tap targets for buttons */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better scrolling */
+  #messages, #globalMessages, #dmMessages,
+  #channelList, #friendsList, #serverList {
+    -webkit-overflow-scrolling: touch;
+  }
+}
