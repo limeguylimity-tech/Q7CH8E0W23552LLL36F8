@@ -1260,12 +1260,24 @@ body {
   <div id="newsView"><div id="newsFeed"></div></div>
   <div id="shopView"><div id="pointsDisplay">Points: 0</div><div id="shopItems"></div></div>
   <div id="gamesView">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;">
-      <div style="font-size:64px;">🔧</div>
-      <h2 style="color:var(--c1);font-size:32px;">Closed for Maintenance</h2>
-      <p style="color:#aaa;font-size:16px;">Games are currently unavailable. Check back soon!</p>
+  <div class="games-grid">
+    <div class="game-card" onclick="playGame('trivia')">
+      <div class="game-thumbnail">🧠</div>
+      <div class="game-info">
+        <div class="game-title">Trivia Challenge</div>
+        <button class="play-game-btn">Play Now</button>
+      </div>
+    </div>
+    
+    <div class="game-card" onclick="playGame('number')">
+      <div class="game-thumbnail">🔢</div>
+      <div class="game-info">
+        <div class="game-title">Number Guess</div>
+        <button class="play-game-btn">Play Now</button>
+      </div>
     </div>
   </div>
+</div>
 
   <div id="settingsView">
     <input id="nameInput" class="input" placeholder="Name" readonly>
@@ -2246,6 +2258,7 @@ body {
   <script src="mobile.js"></script>
 </body>
 </html>
+
 
 
 
